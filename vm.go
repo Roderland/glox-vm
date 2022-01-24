@@ -6,14 +6,6 @@ import (
 	"unsafe"
 )
 
-type InterpretResult uint8
-
-const (
-	OK InterpretResult = iota
-	COMPILE_ERROR
-	RUNTIME_ERROR
-)
-
 type VM struct {
 	ip    *byte
 	chunk *Chunk
@@ -30,8 +22,8 @@ func (vm *VM) next() {
 	vm.ip = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.ip)) + 1))
 }
 
-func (vm *VM) interpret(chunk *Chunk) InterpretResult {
-	vm.chunk = chunk
+func (vm *VM) interpret(source string) InterpretResult {
+	vm.chunk = nil
 	vm.ip = (*byte)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&vm.chunk.bytecodes)).Data))
 	return OK
 }
