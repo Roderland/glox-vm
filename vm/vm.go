@@ -52,13 +52,18 @@ func (vm *VM) Run() InterpretResult {
 			}
 			vm.stack.push(NewNumber(-vm.stack.pop().AsNumber()))
 		case OP_ADD:
-			if !vm.stack.peek(0).IsNumber() || !vm.stack.peek(1).IsNumber() {
+			if vm.stack.peek(0).IsString() && vm.stack.peek(1).IsString() {
+				b := vm.stack.pop().AsString()
+				a := vm.stack.pop().AsString()
+				vm.stack.push(NewString(a + b))
+			} else if vm.stack.peek(0).IsNumber() && vm.stack.peek(1).IsNumber() {
+				b := vm.stack.pop().AsNumber()
+				a := vm.stack.pop().AsNumber()
+				vm.stack.push(NewNumber(a + b))
+			} else {
 				vm.runtimeError("Operands must be numbers.")
 				return RUNTIME_ERROR
 			}
-			b := vm.stack.pop().AsNumber()
-			a := vm.stack.pop().AsNumber()
-			vm.stack.push(NewNumber(a + b))
 		case OP_SUBTRACT:
 			if !vm.stack.peek(0).IsNumber() || !vm.stack.peek(1).IsNumber() {
 				vm.runtimeError("Operands must be numbers.")

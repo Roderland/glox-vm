@@ -1,42 +1,34 @@
 package glox_vm
 
-import (
-	"unsafe"
-)
-
 const (
 	VAL_NIL ValueType = iota
 	VAL_BOOL
 	VAL_NUMBER
+	VAL_STRING
 )
 
 type (
 	ValueType uint8
 	Value struct {
 		typ  ValueType
-		data [8]byte
+		data interface{}
 	}
-)
-
-var (
-	nilVal = [8]byte{}
-	falseVal = [8]byte{}
-	trueVal = [8]byte{1}
 )
 
 func NewNil() Value {
-	return Value{VAL_NIL, nilVal}
+	return Value{VAL_NIL, nil}
 }
 
 func NewBool(b bool) Value {
-	if b {
-		return Value{VAL_BOOL, trueVal}
-	}
-	return Value{VAL_BOOL, falseVal}
+	return Value{VAL_BOOL, b}
 }
 
 func NewNumber(num float64) Value {
-	return Value{VAL_NUMBER, *(*[8]byte)(unsafe.Pointer(&num))}
+	return Value{VAL_NUMBER, num}
+}
+
+func NewString(s string) Value {
+	return Value{VAL_STRING, s}
 }
 
 func (value Value) IsNil() bool {
@@ -51,12 +43,20 @@ func (value Value) IsNumber() bool {
 	return value.typ == VAL_NUMBER
 }
 
+func (value Value) IsString() bool {
+	return value.typ == VAL_STRING
+}
+
 func (value Value) AsBool() bool {
-	return value.data != falseVal
+	return value.data.(bool)
 }
 
 func (value Value) AsNumber() float64 {
-	return *(*float64)(unsafe.Pointer(&value.data))
+	return value.data.(float64)
+}
+
+func (value Value) AsString() string {
+	return value.data.(string)
 }
 
 func (value Value) IsFalse() bool {
@@ -73,6 +73,8 @@ func (value Value) Equal(target Value) bool {
 		return value.AsBool() == target.AsBool()
 	case VAL_NUMBER:
 		return value.AsNumber() == target.AsNumber()
+	case VAL_STRING:
+		return value.AsString() == target.AsString()
 	default:
 		return false
 	}

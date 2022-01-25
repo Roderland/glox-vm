@@ -79,9 +79,15 @@ func (scanner *Scanner) isAtEnd() bool {
 }
 
 func (scanner *Scanner) makeToken(tokenType uint8) Token {
+	var lexeme []byte
+	if tokenType == TOKEN_STRING {
+		lexeme = scanner.source[scanner.start+1 : scanner.current-1]
+	} else {
+		lexeme = scanner.source[scanner.start:scanner.current]
+	}
 	return Token{
 		tokenType: tokenType,
-		lexeme:    scanner.source[scanner.start:scanner.current],
+		lexeme:    lexeme,
 		line:      scanner.line,
 	}
 }

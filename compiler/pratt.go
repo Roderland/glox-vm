@@ -52,7 +52,7 @@ func init() {
 	rules[TOKEN_LESS] = parseRule{"", "Binary", PREC_COMPARISON}
 	rules[TOKEN_LESS_EQUAL] = parseRule{"", "Binary", PREC_COMPARISON}
 	rules[TOKEN_IDENTIFIER] = parseRule{"", "", PREC_NONE}
-	rules[TOKEN_STRING] = parseRule{"", "", PREC_NONE}
+	rules[TOKEN_STRING] = parseRule{"String", "", PREC_NONE}
 	rules[TOKEN_NUMBER] = parseRule{"Number", "", PREC_NONE}
 	rules[TOKEN_AND] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_CLASS] = parseRule{"", "", PREC_NONE}
@@ -168,4 +168,9 @@ func (compiler *Compiler) Literal() {
 	default:
 		return
 	}
+}
+
+func (compiler *Compiler) String() {
+	str := string(compiler.parser.previous.lexeme)
+	compiler.emitConstant(NewString(str))
 }

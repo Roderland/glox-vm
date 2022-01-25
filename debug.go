@@ -71,5 +71,7 @@ func PrintValue(value Value) {
 		fmt.Print("nil")
 	case VAL_NUMBER:
 		fmt.Printf("%g", value.AsNumber())
+	case VAL_STRING:
+		fmt.Printf("%s", value.AsString())
 	}
 }
