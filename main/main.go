@@ -2,21 +2,15 @@ package main
 
 import (
 	"fmt"
+	. "glox-vm"
 	"glox-vm/compiler"
+	"glox-vm/vm"
 	"io/ioutil"
 	"os"
 )
 
-type InterpretResult uint8
-
-const (
-	OK InterpretResult = iota
-	COMPILE_ERROR
-	RUNTIME_ERROR
-)
-
 func main() {
-	interpret(readFile(), &compiler.Compiler{}, _VM())
+	interpret(readFile(), &compiler.Compiler{})
 }
 
 func readFile() []byte {
@@ -32,7 +26,10 @@ func readFile() []byte {
 	return bytes
 }
 
-func interpret(source []byte, compiler *compiler.Compiler, vm *VM) InterpretResult {
-	compiler.Compile(source)
-	return OK
+func interpret(source []byte, compiler *compiler.Compiler) InterpretResult {
+	chunk, err := compiler.Compile(source)
+	if err != nil {
+		return COMPILE_ERROR
+	}
+	return vm.InitVM(chunk).Run()
 }

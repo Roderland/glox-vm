@@ -1,21 +1,21 @@
-package main
+package glox_vm
 
 import "fmt"
 
-func disassembleChunk(chunk *Chunk, title string) {
+func DisassembleChunk(chunk *Chunk, title string) {
 	fmt.Printf("== %s ==\n", title)
-	for offset := 0; offset < len(chunk.bytecodes); offset = disassembleInstruction(chunk, offset) {}
+	for offset := 0; offset < len(chunk.Bytecodes); offset = DisassembleInstruction(chunk, offset) {}
 }
 
-func disassembleInstruction(chunk *Chunk, offset int) int {
+func DisassembleInstruction(chunk *Chunk, offset int) int {
 	fmt.Printf("%04d ", offset)
 	if offset > 0 && chunk.lines[offset] == chunk.lines[offset-1] {
 		fmt.Printf("   | ");
 	} else {
 		fmt.Printf("%4d ", chunk.lines[offset])
 	}
-	instruction := chunk.bytecodes[offset]
-	switch chunk.bytecodes[offset] {
+	instruction := chunk.Bytecodes[offset]
+	switch chunk.Bytecodes[offset] {
 	case OP_RETURN:
 		return simpleInstruction("OP_RETURN", offset)
 	case OP_CONSTANT:
@@ -42,13 +42,13 @@ func simpleInstruction(name string, offset int) int {
 }
 
 func constantInstruction(name string, chunk *Chunk, offset int) int {
-	index := chunk.bytecodes[offset+1]
+	index := chunk.Bytecodes[offset+1]
 	fmt.Printf("%-16s %4d '", name, index)
-	printValue(chunk.constants[index])
+	PrintValue(chunk.Constants[index])
 	fmt.Println()
 	return offset + 2
 }
 
-func printValue(value Value) {
+func PrintValue(value Value) {
 	fmt.Printf("%g", value)
 }

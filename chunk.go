@@ -1,4 +1,4 @@
-package main
+package glox_vm
 
 type Value float64
 
@@ -13,25 +13,25 @@ const (
 )
 
 type Chunk struct {
-	bytecodes []byte
+	Bytecodes []byte
 	lines     []int
-	constants []Value
+	Constants []Value
 }
 
-func _Chunk() *Chunk {
+func CreateChunk() *Chunk {
 	return &Chunk{
-		bytecodes: []byte{},
+		Bytecodes: []byte{},
 		lines:     []int{},
-		constants: []Value{},
+		Constants: []Value{},
 	}
 }
 
-func (chunk *Chunk) addBytecode(bytecode byte, line int) {
-	chunk.bytecodes = append(chunk.bytecodes, bytecode)
+func (chunk *Chunk) AddBytecode(bytecode byte, line int) {
+	chunk.Bytecodes = append(chunk.Bytecodes, bytecode)
 	chunk.lines = append(chunk.lines, line)
 }
 
-func (chunk *Chunk) addConstant(constant Value) int {
-	chunk.constants = append(chunk.constants, constant)
-	return len(chunk.constants) - 1
+func (chunk *Chunk) AddConstant(constant Value) int {
+	chunk.Constants = append(chunk.Constants, constant)
+	return len(chunk.Constants) - 1
 }

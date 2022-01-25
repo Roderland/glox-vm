@@ -1,7 +1,8 @@
-package main
+package vm
 
 import (
 	"fmt"
+	. "glox-vm"
 	"unsafe"
 )
 
@@ -31,7 +32,7 @@ func (stack *Stack) print(value Value) {
 	n := (uintptr(unsafe.Pointer(stack.top)) - uintptr(unsafe.Pointer(&stack.frames))) / unsafe.Sizeof(value)
 	for i := 0; i < int(n); i ++  {
 		fmt.Print("[ ")
-		printValue(*(*Value)(unsafe.Pointer(uintptr(unsafe.Pointer(&stack.frames)) + uintptr(i)*unsafe.Sizeof(value))))
+		PrintValue(*(*Value)(unsafe.Pointer(uintptr(unsafe.Pointer(&stack.frames)) + uintptr(i)*unsafe.Sizeof(value))))
 		fmt.Print(" ]")
 	}
 	fmt.Println()

@@ -1,7 +1,8 @@
-package main
+package vm
 
 import (
 	"fmt"
+	. "glox-vm"
 	"reflect"
 	"unsafe"
 )
@@ -12,38 +13,36 @@ type VM struct {
 	stack *Stack
 }
 
-func _VM() *VM {
+func InitVM(chunk *Chunk) *VM {
 	stack := new(Stack)
 	stack.reset()
-	return &VM{stack: stack}
+	var vm VM
+	vm.stack = stack
+	vm.chunk = chunk
+	vm.ip = (*byte)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&vm.chunk.Bytecodes)).Data))
+	return &vm
 }
 
 func (vm *VM) next() {
 	vm.ip = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.ip)) + 1))
 }
 
-func (vm *VM) interpret(source string) InterpretResult {
-	vm.chunk = nil
-	vm.ip = (*byte)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&vm.chunk.bytecodes)).Data))
-	return OK
-}
-
-func (vm *VM) run() InterpretResult {
+func (vm *VM) Run() InterpretResult {
 	for {
 		vm.stack.print(0)
-		offset := uintptr(unsafe.Pointer(vm.ip)) - (*reflect.SliceHeader)(unsafe.Pointer(&vm.chunk.bytecodes)).Data
-		disassembleInstruction(vm.chunk, int(offset))
+		offset := uintptr(unsafe.Pointer(vm.ip)) - (*reflect.SliceHeader)(unsafe.Pointer(&vm.chunk.Bytecodes)).Data
+		DisassembleInstruction(vm.chunk, int(offset))
 		instruction := *vm.ip
 		vm.next()
 		switch instruction {
 		case OP_RETURN:
-			printValue(vm.stack.pop())
+			PrintValue(vm.stack.pop())
 			fmt.Println()
 			return OK
 		case OP_CONSTANT:
 			index := *vm.ip
 			vm.next()
-			constant := vm.chunk.constants[int(index)]
+			constant := vm.chunk.Constants[int(index)]
 			vm.stack.push(constant)
 		case OP_NEGATE:
 			vm.stack.push(-vm.stack.pop())
