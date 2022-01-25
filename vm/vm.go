@@ -3,6 +3,7 @@ package vm
 import (
 	"fmt"
 	. "glox-vm"
+	"os"
 	"reflect"
 	"unsafe"
 )
@@ -29,7 +30,7 @@ func (vm *VM) next() {
 
 func (vm *VM) Run() InterpretResult {
 	for {
-		vm.stack.print(0)
+		vm.stack.print(NewNil())
 		offset := uintptr(unsafe.Pointer(vm.ip)) - (*reflect.SliceHeader)(unsafe.Pointer(&vm.chunk.Bytecodes)).Data
 		DisassembleInstruction(vm.chunk, int(offset))
 		instruction := *vm.ip
@@ -45,23 +46,79 @@ func (vm *VM) Run() InterpretResult {
 			constant := vm.chunk.Constants[int(index)]
 			vm.stack.push(constant)
 		case OP_NEGATE:
-			vm.stack.push(-vm.stack.pop())
+			if !vm.stack.peek(0).IsNumber() {
+				vm.runtimeError("Operand must be a number.")
+				return RUNTIME_ERROR
+			}
+			vm.stack.push(NewNumber(-vm.stack.pop().AsNumber()))
 		case OP_ADD:
-			b := vm.stack.pop()
-			a := vm.stack.pop()
-			vm.stack.push(a + b)
+			if !vm.stack.peek(0).IsNumber() || !vm.stack.peek(1).IsNumber() {
+				vm.runtimeError("Operands must be numbers.")
+				return RUNTIME_ERROR
+			}
+			b := vm.stack.pop().AsNumber()
+			a := vm.stack.pop().AsNumber()
+			vm.stack.push(NewNumber(a + b))
 		case OP_SUBTRACT:
-			b := vm.stack.pop()
-			a := vm.stack.pop()
-			vm.stack.push(a - b)
+			if !vm.stack.peek(0).IsNumber() || !vm.stack.peek(1).IsNumber() {
+				vm.runtimeError("Operands must be numbers.")
+				return RUNTIME_ERROR
+			}
+			b := vm.stack.pop().AsNumber()
+			a := vm.stack.pop().AsNumber()
+			vm.stack.push(NewNumber(a - b))
 		case OP_MULTIPLY:
-			b := vm.stack.pop()
-			a := vm.stack.pop()
-			vm.stack.push(a * b)
+			if !vm.stack.peek(0).IsNumber() || !vm.stack.peek(1).IsNumber() {
+				vm.runtimeError("Operands must be numbers.")
+				return RUNTIME_ERROR
+			}
+			b := vm.stack.pop().AsNumber()
+			a := vm.stack.pop().AsNumber()
+			vm.stack.push(NewNumber(a * b))
 		case OP_DIVIDE:
+			if !vm.stack.peek(0).IsNumber() || !vm.stack.peek(1).IsNumber() {
+				vm.runtimeError("Operands must be numbers.")
+				return RUNTIME_ERROR
+			}
+			b := vm.stack.pop().AsNumber()
+			a := vm.stack.pop().AsNumber()
+			vm.stack.push(NewNumber(a / b))
+		case OP_NIL:
+			vm.stack.push(NewNil())
+		case OP_FALSE:
+			vm.stack.push(NewBool(false))
+		case OP_TRUE:
+			vm.stack.push(NewBool(true))
+		case OP_NOT:
+			vm.stack.push(NewBool(vm.stack.pop().IsFalse()))
+		case OP_EQUAL:
 			b := vm.stack.pop()
 			a := vm.stack.pop()
-			vm.stack.push(a / b)
+			vm.stack.push(NewBool(a.Equal(b)))
+		case OP_GREATER:
+			if !vm.stack.peek(0).IsNumber() || !vm.stack.peek(1).IsNumber() {
+				vm.runtimeError("Operands must be numbers.")
+				return RUNTIME_ERROR
+			}
+			b := vm.stack.pop().AsNumber()
+			a := vm.stack.pop().AsNumber()
+			vm.stack.push(NewBool(a > b))
+		case OP_LESS:
+			if !vm.stack.peek(0).IsNumber() || !vm.stack.peek(1).IsNumber() {
+				vm.runtimeError("Operands must be numbers.")
+				return RUNTIME_ERROR
+			}
+			b := vm.stack.pop().AsNumber()
+			a := vm.stack.pop().AsNumber()
+			vm.stack.push(NewBool(a < b))
 		}
 	}
+}
+
+func (vm *VM) runtimeError(format string, a ...interface{}) {
+	_, _ = fmt.Fprintf(os.Stderr, format + "\n", a...)
+	offset := uintptr(unsafe.Pointer(vm.ip)) - (*reflect.SliceHeader)(unsafe.Pointer(&vm.chunk.Bytecodes)).Data - 1
+	line := vm.chunk.Lines[offset]
+	_, _ = fmt.Fprintf(os.Stderr, "[line %d] in script\n", line)
+	vm.stack.reset()
 }

@@ -9,10 +9,10 @@ func DisassembleChunk(chunk *Chunk, title string) {
 
 func DisassembleInstruction(chunk *Chunk, offset int) int {
 	fmt.Printf("%04d ", offset)
-	if offset > 0 && chunk.lines[offset] == chunk.lines[offset-1] {
+	if offset > 0 && chunk.Lines[offset] == chunk.Lines[offset-1] {
 		fmt.Printf("   | ");
 	} else {
-		fmt.Printf("%4d ", chunk.lines[offset])
+		fmt.Printf("%4d ", chunk.Lines[offset])
 	}
 	instruction := chunk.Bytecodes[offset]
 	switch chunk.Bytecodes[offset] {
@@ -30,6 +30,20 @@ func DisassembleInstruction(chunk *Chunk, offset int) int {
 		return simpleInstruction("OP_MULTIPLY", offset)
 	case OP_DIVIDE:
 		return simpleInstruction("OP_DIVIDE", offset)
+	case OP_NIL:
+		return simpleInstruction("OP_NIL", offset)
+	case OP_FALSE:
+		return simpleInstruction("OP_FALSE", offset)
+	case OP_TRUE:
+		return simpleInstruction("OP_TRUE", offset)
+	case OP_NOT:
+		return simpleInstruction("OP_NOT", offset)
+	case OP_EQUAL:
+		return simpleInstruction("OP_EQUAL", offset)
+	case OP_GREATER:
+		return simpleInstruction("OP_GREATER", offset)
+	case OP_LESS:
+		return simpleInstruction("OP_LESS", offset)
 	default:
 		fmt.Printf("Unknown opcode %d\n", instruction)
 		return offset + 1
@@ -50,5 +64,12 @@ func constantInstruction(name string, chunk *Chunk, offset int) int {
 }
 
 func PrintValue(value Value) {
-	fmt.Printf("%g", value)
+	switch value.typ {
+	case VAL_BOOL:
+		fmt.Print(value.AsBool())
+	case VAL_NIL:
+		fmt.Print("nil")
+	case VAL_NUMBER:
+		fmt.Printf("%g", value.AsNumber())
+	}
 }

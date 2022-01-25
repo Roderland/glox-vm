@@ -27,6 +27,10 @@ func (stack *Stack) pop() (value Value) {
 	return *stack.top
 }
 
+func (stack *Stack) peek(distance int) (value Value) {
+	return *(*Value)(unsafe.Pointer(uintptr(unsafe.Pointer(stack.top)) - uintptr(distance+1)*unsafe.Sizeof(value)))
+}
+
 func (stack *Stack) print(value Value) {
 	fmt.Print("          ")
 	n := (uintptr(unsafe.Pointer(stack.top)) - uintptr(unsafe.Pointer(&stack.frames))) / unsafe.Sizeof(value)

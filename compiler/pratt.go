@@ -43,31 +43,31 @@ func init() {
 	rules[TOKEN_SEMICOLON] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_SLASH] = parseRule{"", "Binary", PREC_FACTOR}
 	rules[TOKEN_STAR] = parseRule{"", "Binary", PREC_FACTOR}
-	rules[TOKEN_BANG] = parseRule{"", "", PREC_NONE}
-	rules[TOKEN_BANG_EQUAL] = parseRule{"", "", PREC_NONE}
+	rules[TOKEN_BANG] = parseRule{"Unary", "", PREC_NONE}
+	rules[TOKEN_BANG_EQUAL] = parseRule{"", "Binary", PREC_EQUALITY}
 	rules[TOKEN_EQUAL] = parseRule{"", "", PREC_NONE}
-	rules[TOKEN_EQUAL_EQUAL] = parseRule{"", "", PREC_NONE}
-	rules[TOKEN_GREATER] = parseRule{"", "", PREC_NONE}
-	rules[TOKEN_GREATER_EQUAL] = parseRule{"", "", PREC_NONE}
-	rules[TOKEN_LESS] = parseRule{"", "", PREC_NONE}
-	rules[TOKEN_LESS_EQUAL] = parseRule{"", "", PREC_NONE}
+	rules[TOKEN_EQUAL_EQUAL] = parseRule{"", "Binary", PREC_EQUALITY}
+	rules[TOKEN_GREATER] = parseRule{"", "Binary", PREC_COMPARISON}
+	rules[TOKEN_GREATER_EQUAL] = parseRule{"", "Binary", PREC_COMPARISON}
+	rules[TOKEN_LESS] = parseRule{"", "Binary", PREC_COMPARISON}
+	rules[TOKEN_LESS_EQUAL] = parseRule{"", "Binary", PREC_COMPARISON}
 	rules[TOKEN_IDENTIFIER] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_STRING] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_NUMBER] = parseRule{"Number", "", PREC_NONE}
 	rules[TOKEN_AND] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_CLASS] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_ELSE] = parseRule{"", "", PREC_NONE}
-	rules[TOKEN_FALSE] = parseRule{"", "", PREC_NONE}
+	rules[TOKEN_FALSE] = parseRule{"Literal", "", PREC_NONE}
 	rules[TOKEN_FOR] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_FUN] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_IF] = parseRule{"", "", PREC_NONE}
-	rules[TOKEN_NIL] = parseRule{"", "", PREC_NONE}
+	rules[TOKEN_NIL] = parseRule{"Literal", "", PREC_NONE}
 	rules[TOKEN_OR] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_PRINT] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_RETURN] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_SUPER] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_THIS] = parseRule{"", "", PREC_NONE}
-	rules[TOKEN_TRUE] = parseRule{"", "", PREC_NONE}
+	rules[TOKEN_TRUE] = parseRule{"Literal", "", PREC_NONE}
 	rules[TOKEN_VAR] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_WHILE] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_ERROR] = parseRule{"", "", PREC_NONE}
@@ -109,7 +109,7 @@ func (compiler *Compiler) expression() {
 
 func (compiler *Compiler) Number() {
 	d, _ := strconv.ParseFloat(string(compiler.parser.previous.lexeme), 64)
-	compiler.emitConstant(Value(d))
+	compiler.emitConstant(NewNumber(d))
 }
 
 func (compiler *Compiler) Grouping() {
@@ -123,6 +123,8 @@ func (compiler *Compiler) Unary() {
 	switch typ {
 	case TOKEN_MINUS:
 		compiler.emit(OP_NEGATE)
+	case TOKEN_BANG:
+		compiler.emit(OP_NOT)
 	default:
 		return
 	}
@@ -141,6 +143,28 @@ func (compiler *Compiler) Binary() {
 		compiler.emit(OP_MULTIPLY)
 	case TOKEN_SLASH:
 		compiler.emit(OP_DIVIDE)
+	case TOKEN_BANG_EQUAL:
+		compiler.emit(OP_EQUAL, OP_NOT)
+	case TOKEN_EQUAL_EQUAL:
+		compiler.emit(OP_EQUAL)
+	case TOKEN_GREATER:
+		compiler.emit(OP_GREATER)
+	case TOKEN_GREATER_EQUAL:
+		compiler.emit(OP_LESS, OP_NOT)
+	case TOKEN_LESS:
+		compiler.emit(OP_LESS)
+	case TOKEN_LESS_EQUAL:
+		compiler.emit(OP_GREATER, OP_NOT)
+	default:
+		return
+	}
+}
+
+func (compiler *Compiler) Literal() {
+	switch compiler.parser.previous.tokenType {
+	case TOKEN_FALSE: compiler.emit(OP_FALSE)
+	case TOKEN_TRUE: compiler.emit(OP_TRUE)
+	case TOKEN_NIL: compiler.emit(OP_NIL)
 	default:
 		return
 	}

@@ -46,27 +46,27 @@ func (scanner *Scanner) scanToken() Token {
 		return scanner.makeToken(TOKEN_STAR)
 	case '!':
 		if scanner.match('=') {
-			scanner.makeToken(TOKEN_BANG_EQUAL)
+			return scanner.makeToken(TOKEN_BANG_EQUAL)
 		} else {
-			scanner.makeToken(TOKEN_BANG)
+			return scanner.makeToken(TOKEN_BANG)
 		}
 	case '=':
 		if scanner.match('=') {
-			scanner.makeToken(TOKEN_EQUAL_EQUAL)
+			return scanner.makeToken(TOKEN_EQUAL_EQUAL)
 		} else {
-			scanner.makeToken(TOKEN_EQUAL)
+			return scanner.makeToken(TOKEN_EQUAL)
 		}
 	case '<':
 		if scanner.match('=') {
-			scanner.makeToken(TOKEN_LESS_EQUAL)
+			return scanner.makeToken(TOKEN_LESS_EQUAL)
 		} else {
-			scanner.makeToken(TOKEN_LESS)
+			return scanner.makeToken(TOKEN_LESS)
 		}
 	case '>':
 		if scanner.match('=') {
-			scanner.makeToken(TOKEN_GREATER_EQUAL)
+			return scanner.makeToken(TOKEN_GREATER_EQUAL)
 		} else {
-			scanner.makeToken(TOKEN_GREATER)
+			return scanner.makeToken(TOKEN_GREATER)
 		}
 	case '"':
 		return scanner.makeString()

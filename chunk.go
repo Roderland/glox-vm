@@ -1,7 +1,5 @@
 package glox_vm
 
-type Value float64
-
 const (
 	OP_RETURN byte = iota
 	OP_CONSTANT
@@ -10,25 +8,32 @@ const (
 	OP_SUBTRACT
 	OP_MULTIPLY
 	OP_DIVIDE
+	OP_NIL
+	OP_TRUE
+	OP_FALSE
+	OP_NOT
+	OP_EQUAL
+	OP_GREATER
+	OP_LESS
 )
 
 type Chunk struct {
 	Bytecodes []byte
-	lines     []int
+	Lines     []int
 	Constants []Value
 }
 
 func CreateChunk() *Chunk {
 	return &Chunk{
 		Bytecodes: []byte{},
-		lines:     []int{},
+		Lines:     []int{},
 		Constants: []Value{},
 	}
 }
 
 func (chunk *Chunk) AddBytecode(bytecode byte, line int) {
 	chunk.Bytecodes = append(chunk.Bytecodes, bytecode)
-	chunk.lines = append(chunk.lines, line)
+	chunk.Lines = append(chunk.Lines, line)
 }
 
 func (chunk *Chunk) AddConstant(constant Value) int {
