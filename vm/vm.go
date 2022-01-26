@@ -9,9 +9,10 @@ import (
 )
 
 type VM struct {
-	ip    *byte
-	chunk *Chunk
-	stack *Stack
+	ip      *byte
+	chunk   *Chunk
+	stack   *Stack
+	globals map[string]Value
 }
 
 func InitVM(chunk *Chunk) *VM {
@@ -21,11 +22,8 @@ func InitVM(chunk *Chunk) *VM {
 	vm.stack = stack
 	vm.chunk = chunk
 	vm.ip = (*byte)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&vm.chunk.Bytecodes)).Data))
+	vm.globals = map[string]Value{}
 	return &vm
-}
-
-func (vm *VM) next() {
-	vm.ip = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.ip)) + 1))
 }
 
 func (vm *VM) Run() InterpretResult {
@@ -33,18 +31,12 @@ func (vm *VM) Run() InterpretResult {
 		vm.stack.print(NewNil())
 		offset := uintptr(unsafe.Pointer(vm.ip)) - (*reflect.SliceHeader)(unsafe.Pointer(&vm.chunk.Bytecodes)).Data
 		DisassembleInstruction(vm.chunk, int(offset))
-		instruction := *vm.ip
-		vm.next()
-		switch instruction {
+
+		switch vm.readBytecode() {
 		case OP_RETURN:
-			PrintValue(vm.stack.pop())
-			fmt.Println()
 			return OK
 		case OP_CONSTANT:
-			index := *vm.ip
-			vm.next()
-			constant := vm.chunk.Constants[int(index)]
-			vm.stack.push(constant)
+			vm.stack.push(vm.readConstant())
 		case OP_NEGATE:
 			if !vm.stack.peek(0).IsNumber() {
 				vm.runtimeError("Operand must be a number.")
@@ -116,12 +108,51 @@ func (vm *VM) Run() InterpretResult {
 			b := vm.stack.pop().AsNumber()
 			a := vm.stack.pop().AsNumber()
 			vm.stack.push(NewBool(a < b))
+		case OP_PRINT:
+			PrintValue(vm.stack.pop())
+			fmt.Println()
+		case OP_POP:
+			vm.stack.pop()
+		case OP_DEFINE_GLOBAL:
+			name := vm.readConstant().AsString()
+			value := vm.stack.pop()
+			vm.globals[name] = value
+		case OP_GET_GLOBAL:
+			name := vm.readConstant().AsString()
+			value, ok := vm.globals[name]
+			if !ok {
+				vm.runtimeError("Undefined variable '%s'.", name)
+				return RUNTIME_ERROR
+			}
+			vm.stack.push(value)
+		case OP_SET_GLOBAL:
+			name := vm.readConstant().AsString()
+			if _, ok := vm.globals[name]; !ok {
+				vm.runtimeError("Undefined variable '%s'.", name)
+				return RUNTIME_ERROR
+			}
+			vm.globals[name] = vm.stack.peek(0)
 		}
 	}
 }
 
+func (vm *VM) readConstant() Value {
+	index := vm.readBytecode()
+	return vm.chunk.Constants[index]
+}
+
+func (vm *VM) readBytecode() (bt byte) {
+	bt = *vm.ip
+	vm.next()
+	return
+}
+
+func (vm *VM) next() {
+	vm.ip = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.ip)) + 1))
+}
+
 func (vm *VM) runtimeError(format string, a ...interface{}) {
-	_, _ = fmt.Fprintf(os.Stderr, format + "\n", a...)
+	_, _ = fmt.Fprintf(os.Stderr, format+"\n", a...)
 	offset := uintptr(unsafe.Pointer(vm.ip)) - (*reflect.SliceHeader)(unsafe.Pointer(&vm.chunk.Bytecodes)).Data - 1
 	line := vm.chunk.Lines[offset]
 	_, _ = fmt.Fprintf(os.Stderr, "[line %d] in script\n", line)

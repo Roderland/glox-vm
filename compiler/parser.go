@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"errors"
 	"fmt"
 	"os"
 )
@@ -8,7 +9,7 @@ import (
 type Parser struct {
 	current   Token
 	previous  Token
-	isError   bool
+	err       error
 	panicMode bool
 }
 
@@ -34,7 +35,7 @@ func (parser *Parser) errorAt(token *Token, msg string) {
 		fprintfError(" at '%s'", token.lexeme)
 	}
 	fprintfError(": %s\n", msg)
-	parser.isError = true
+	parser.err = errors.New(msg)
 }
 
 func fprintfError(format string, a ...interface{}) {

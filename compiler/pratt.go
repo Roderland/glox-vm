@@ -51,7 +51,7 @@ func init() {
 	rules[TOKEN_GREATER_EQUAL] = parseRule{"", "Binary", PREC_COMPARISON}
 	rules[TOKEN_LESS] = parseRule{"", "Binary", PREC_COMPARISON}
 	rules[TOKEN_LESS_EQUAL] = parseRule{"", "Binary", PREC_COMPARISON}
-	rules[TOKEN_IDENTIFIER] = parseRule{"", "", PREC_NONE}
+	rules[TOKEN_IDENTIFIER] = parseRule{"Variable", "", PREC_NONE}
 	rules[TOKEN_STRING] = parseRule{"String", "", PREC_NONE}
 	rules[TOKEN_NUMBER] = parseRule{"Number", "", PREC_NONE}
 	rules[TOKEN_AND] = parseRule{"", "", PREC_NONE}
@@ -78,13 +78,13 @@ func getRule(tokenType uint8) *parseRule {
 	return &rules[tokenType]
 }
 
-func (compiler *Compiler) callParseFn(parseFn string) {
+func (compiler *Compiler) callParseFn(parseFn string, canAssign bool) {
 	if parseFn == "" {
 		return
 	}
 	value := reflect.ValueOf(compiler)
 	method := value.MethodByName(parseFn)
-	method.Call([]reflect.Value{})
+	method.Call([]reflect.Value{reflect.ValueOf(canAssign)})
 }
 
 // 解析相等或更高优先级的符号
@@ -95,11 +95,15 @@ func (compiler *Compiler) parsePrecedence(pcd Precedence) {
 		compiler.parser.errorAtPrevious("Expect expression.")
 		return
 	}
-	compiler.callParseFn(prefixFn)
+	canAssign := pcd <= PREC_ASSIGNMENT
+	compiler.callParseFn(prefixFn, canAssign)
 	for pcd <= getRule(compiler.parser.current.tokenType).pcd {
 		compiler.advance()
 		infixFn := getRule(compiler.parser.previous.tokenType).infix
-		compiler.callParseFn(infixFn)
+		compiler.callParseFn(infixFn, canAssign)
+	}
+	if !canAssign && compiler.match(TOKEN_EQUAL) {
+		compiler.parser.errorAtPrevious("Invalid assignment target.")
 	}
 }
 
@@ -107,17 +111,17 @@ func (compiler *Compiler) expression() {
 	compiler.parsePrecedence(PREC_ASSIGNMENT)
 }
 
-func (compiler *Compiler) Number() {
+func (compiler *Compiler) Number(bool) {
 	d, _ := strconv.ParseFloat(string(compiler.parser.previous.lexeme), 64)
-	compiler.emitConstant(NewNumber(d))
+	compiler.emitOpConstant(NewNumber(d))
 }
 
-func (compiler *Compiler) Grouping() {
+func (compiler *Compiler) Grouping(bool) {
 	compiler.expression()
 	compiler.consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.")
 }
 
-func (compiler *Compiler) Unary() {
+func (compiler *Compiler) Unary(bool) {
 	typ := compiler.parser.previous.tokenType
 	compiler.parsePrecedence(PREC_UNARY)
 	switch typ {
@@ -130,7 +134,7 @@ func (compiler *Compiler) Unary() {
 	}
 }
 
-func (compiler *Compiler) Binary() {
+func (compiler *Compiler) Binary(bool) {
 	typ := compiler.parser.previous.tokenType
 	rule := getRule(typ)
 	compiler.parsePrecedence(rule.pcd + 1)
@@ -160,7 +164,7 @@ func (compiler *Compiler) Binary() {
 	}
 }
 
-func (compiler *Compiler) Literal() {
+func (compiler *Compiler) Literal(bool) {
 	switch compiler.parser.previous.tokenType {
 	case TOKEN_FALSE: compiler.emit(OP_FALSE)
 	case TOKEN_TRUE: compiler.emit(OP_TRUE)
@@ -170,7 +174,21 @@ func (compiler *Compiler) Literal() {
 	}
 }
 
-func (compiler *Compiler) String() {
+func (compiler *Compiler) String(bool) {
 	str := string(compiler.parser.previous.lexeme)
-	compiler.emitConstant(NewString(str))
+	compiler.emitOpConstant(NewString(str))
+}
+
+func (compiler *Compiler) Variable(canAssign bool) {
+	compiler.namedVariable(compiler.parser.previous, canAssign)
+}
+
+func (compiler *Compiler) namedVariable(name Token, canAssign bool) {
+	arg := compiler.identifierConstant(&name)
+	if canAssign && compiler.match(TOKEN_EQUAL) {
+		compiler.expression()
+		compiler.emit(OP_SET_GLOBAL, arg)
+	} else {
+		compiler.emit(OP_GET_GLOBAL, arg)
+	}
 }
