@@ -9,10 +9,10 @@ type Scanner struct {
 
 func (scanner *Scanner) scanToken() Token {
 	scanner.start = scanner.current
+	scanner.skipWhitespace()
 	if scanner.isAtEnd() {
 		return scanner.makeToken(TOKEN_EOF)
 	}
-	scanner.skipWhitespace()
 	scanner.start = scanner.current
 	c := scanner.advance()
 	if isAlpha(c) {
@@ -116,6 +116,9 @@ func (scanner *Scanner) match(expected uint8) bool {
 
 func (scanner *Scanner) skipWhitespace() {
 	for {
+		if scanner.isAtEnd() {
+			return
+		}
 		switch scanner.peek() {
 		case ' ':
 			scanner.advance()

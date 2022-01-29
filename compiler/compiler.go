@@ -2,6 +2,7 @@ package compiler
 
 import (
 	. "glox-vm"
+	"math"
 )
 
 type Compiler struct {
@@ -107,6 +108,8 @@ func (compiler *Compiler) declaration() {
 func (compiler *Compiler) statement() {
 	if compiler.match(TOKEN_PRINT) {
 		compiler.printStatement()
+	} else if compiler.match(TOKEN_IF) {
+		compiler.ifStatement()
 	} else if compiler.match(TOKEN_LEFT_BRACE) {
 		compiler.scope.begin()
 		compiler.block()
@@ -114,6 +117,46 @@ func (compiler *Compiler) statement() {
 	} else {
 		compiler.expression()
 	}
+}
+
+// ifStatement if跳转的字节码实现：
+// 这三个byte用于跳过OP_POP,then语句,OP_JUMP		OP_JUMP_IF_FALSE 	high-8bit low-8bit
+// 将if条件值从VM栈中弹出							OP_POP
+//												... then ...
+// 这三个byte用于跳过OP_POP,else语句				OP_JUMP				high-8bit low-8bit
+// 将if条件值从VM栈中弹出							OP_POP
+// 												... else ...
+func (compiler *Compiler) ifStatement() {
+	compiler.consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.")
+	compiler.expression()
+	compiler.consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.")
+	// OP_JUMP_IF_FALSE
+	thenJump := compiler.emitJump(OP_JUMP_IF_FALSE)
+	// 条件为真，将if条件值从VM栈中弹出
+	compiler.emit(OP_POP)
+	// ... then ...
+	compiler.statement()
+	// OP_JUMP
+	elseJump := compiler.emitJump(OP_JUMP)
+	// 补充OP_JUMP_IF_FALSE的16位跳转地址
+	compiler.patchJump(thenJump)
+	// 条件为假，将if条件值从VM栈中弹出
+	compiler.emit(OP_POP)
+	// ... else ...
+	if compiler.match(TOKEN_ELSE) {
+		compiler.statement()
+	}
+	// 补充OP_JUMP的16位跳转地址
+	compiler.patchJump(elseJump)
+}
+
+func (compiler *Compiler) patchJump(offset int) {
+	jump := len(compiler.currentChunk().Bytecodes) - offset - 2
+	if jump > math.MaxUint8 {
+		compiler.parser.errorAtPrevious("Too much code to jump over.")
+	}
+	compiler.currentChunk().Bytecodes[offset] = uint8(jump>>8) & 0xff
+	compiler.currentChunk().Bytecodes[offset+1] = uint8(jump) & 0xff
 }
 
 func (compiler *Compiler) block() {

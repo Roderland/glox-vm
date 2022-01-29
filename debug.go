@@ -4,13 +4,14 @@ import "fmt"
 
 func DisassembleChunk(chunk *Chunk, title string) {
 	fmt.Printf("== %s ==\n", title)
-	for offset := 0; offset < len(chunk.Bytecodes); offset = DisassembleInstruction(chunk, offset) {}
+	for offset := 0; offset < len(chunk.Bytecodes); offset = DisassembleInstruction(chunk, offset) {
+	}
 }
 
 func DisassembleInstruction(chunk *Chunk, offset int) int {
 	fmt.Printf("%04d ", offset)
 	if offset > 0 && chunk.Lines[offset] == chunk.Lines[offset-1] {
-		fmt.Printf("   | ");
+		fmt.Printf("   | ")
 	} else {
 		fmt.Printf("%4d ", chunk.Lines[offset])
 	}
@@ -58,6 +59,10 @@ func DisassembleInstruction(chunk *Chunk, offset int) int {
 		return byteInstruction("OP_GET_LOCAL", chunk, offset)
 	case OP_SET_LOCAL:
 		return byteInstruction("OP_SET_LOCAL", chunk, offset)
+	case OP_JUMP_IF_FALSE:
+		return jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset)
+	case OP_JUMP:
+		return jumpInstruction("OP_JUMP", 1, chunk, offset)
 	default:
 		fmt.Printf("Unknown opcode %d\n", instruction)
 		return offset + 1
@@ -81,6 +86,13 @@ func byteInstruction(name string, chunk *Chunk, offset int) int {
 	index := chunk.Bytecodes[offset+1]
 	fmt.Printf("%-16s %4d '", name, index)
 	return offset + 2
+}
+
+func jumpInstruction(name string, sign int, chunk *Chunk, offset int) int {
+	jump := uint16(chunk.Bytecodes[offset+1]) << 8
+	jump |= uint16(chunk.Bytecodes[offset+2])
+	fmt.Printf("%-16s %4d -> %d\n", name, offset, offset+3+sign*int(jump))
+	return offset + 3
 }
 
 func PrintValue(value Value) {

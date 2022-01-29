@@ -140,6 +140,14 @@ func (vm *VM) Run() InterpretResult {
 			index := vm.readBytecode()
 			value := vm.stack.peek(0)
 			vm.stack.frames[index] = value
+		case OP_JUMP_IF_FALSE:
+			jump := vm.readShort()
+			if vm.stack.peek(0).IsFalse() {
+				vm.jump(jump)
+			}
+		case OP_JUMP:
+			jump := vm.readShort()
+			vm.jump(jump)
 		}
 	}
 }
@@ -157,8 +165,21 @@ func (vm *VM) readBytecode() (bt byte) {
 	return
 }
 
+// readShort 读取两个字节码
+func (vm *VM) readShort() uint16 {
+	high := *vm.ip
+	vm.next()
+	low := *vm.ip
+	vm.next()
+	return (uint16(high) << 8) | uint16(low)
+}
+
 func (vm *VM) next() {
 	vm.ip = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.ip)) + 1))
+}
+
+func (vm *VM) jump(offset uint16) {
+	vm.ip = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.ip)) + uintptr(offset)))
 }
 
 func (vm *VM) runtimeError(format string, a ...interface{}) {

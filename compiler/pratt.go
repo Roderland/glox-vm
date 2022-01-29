@@ -54,7 +54,7 @@ func init() {
 	rules[TOKEN_IDENTIFIER] = parseRule{"Variable", "", PREC_NONE}
 	rules[TOKEN_STRING] = parseRule{"String", "", PREC_NONE}
 	rules[TOKEN_NUMBER] = parseRule{"Number", "", PREC_NONE}
-	rules[TOKEN_AND] = parseRule{"", "", PREC_NONE}
+	rules[TOKEN_AND] = parseRule{"", "And", PREC_AND}
 	rules[TOKEN_CLASS] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_ELSE] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_FALSE] = parseRule{"Literal", "", PREC_NONE}
@@ -62,7 +62,7 @@ func init() {
 	rules[TOKEN_FUN] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_IF] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_NIL] = parseRule{"Literal", "", PREC_NONE}
-	rules[TOKEN_OR] = parseRule{"", "", PREC_NONE}
+	rules[TOKEN_OR] = parseRule{"", "Or", PREC_OR}
 	rules[TOKEN_PRINT] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_RETURN] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_SUPER] = parseRule{"", "", PREC_NONE}
@@ -172,6 +172,33 @@ func (compiler *Compiler) Literal(bool) {
 	default:
 		return
 	}
+}
+
+// And 短路跳转字节码实现：
+// 										left operand expression
+// 左表达式为假则跳过OP_POP,右表达式		OP_JUMP_IF_FALSE	high-8bit low-8bit
+//										OP_POP
+//										right operand expression
+func (compiler *Compiler) And(bool) {
+	jumpRight := compiler.emitJump(OP_JUMP_IF_FALSE)
+	compiler.emit(OP_POP)
+	compiler.parsePrecedence(PREC_AND)
+	compiler.patchJump(jumpRight)
+}
+
+// Or 短路跳转字节码实现：
+// 										left operand expression
+// 左表达式为假则跳过OP_JUMP				OP_JUMP_IF_FALSE	high-8bit low-8bit
+// 左表达式为真,跳过OP_POP,右表达式		OP_JUMP				high-8bit low-8bit
+//										OP_POP
+//										right operand expression
+func (compiler *Compiler) Or(bool) {
+	jumpOpJump := compiler.emitJump(OP_JUMP_IF_FALSE)
+	jumpRight := compiler.emitJump(OP_JUMP)
+	compiler.patchJump(jumpOpJump)
+	compiler.emit(OP_POP)
+	compiler.parsePrecedence(PREC_OR)
+	compiler.patchJump(jumpRight)
 }
 
 func (compiler *Compiler) String(bool) {

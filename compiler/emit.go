@@ -17,6 +17,11 @@ func (compiler *Compiler) emitConstant(value Value) uint8 {
 	return uint8(index)
 }
 
+func (compiler *Compiler) emitJump(jump byte) int {
+	compiler.emit(jump, uint8(0xff), uint8(0xff))
+	return len(compiler.currentChunk().Bytecodes) - 2
+}
+
 func (compiler *Compiler) emit(bytes ...byte) {
 	for _, bt := range bytes {
 		compiler.currentChunk().AddBytecode(bt, compiler.parser.previous.line)

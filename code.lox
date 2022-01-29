@@ -1,6 +1,5 @@
-{
-  var a = "outer";
-  {
-    var a = a;
-  }
-}
+if (true or false)
+    print "a";
+else
+    print "b";
+print "c";
