@@ -148,6 +148,9 @@ func (vm *VM) Run() InterpretResult {
 		case OP_JUMP:
 			jump := vm.readShort()
 			vm.jump(jump)
+		case OP_LOOP:
+			loop := vm.readShort()
+			vm.loop(loop)
 		}
 	}
 }
@@ -180,6 +183,10 @@ func (vm *VM) next() {
 
 func (vm *VM) jump(offset uint16) {
 	vm.ip = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.ip)) + uintptr(offset)))
+}
+
+func (vm *VM) loop(offset uint16) {
+	vm.ip = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.ip)) - uintptr(offset)))
 }
 
 func (vm *VM) runtimeError(format string, a ...interface{}) {

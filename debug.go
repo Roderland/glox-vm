@@ -63,6 +63,8 @@ func DisassembleInstruction(chunk *Chunk, offset int) int {
 		return jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset)
 	case OP_JUMP:
 		return jumpInstruction("OP_JUMP", 1, chunk, offset)
+	case OP_LOOP:
+		return jumpInstruction("OP_LOOP", -1, chunk, offset)
 	default:
 		fmt.Printf("Unknown opcode %d\n", instruction)
 		return offset + 1
@@ -85,6 +87,7 @@ func constantInstruction(name string, chunk *Chunk, offset int) int {
 func byteInstruction(name string, chunk *Chunk, offset int) int {
 	index := chunk.Bytecodes[offset+1]
 	fmt.Printf("%-16s %4d '", name, index)
+	fmt.Println()
 	return offset + 2
 }
 

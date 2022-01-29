@@ -22,6 +22,15 @@ func (compiler *Compiler) emitJump(jump byte) int {
 	return len(compiler.currentChunk().Bytecodes) - 2
 }
 
+func (compiler *Compiler) emitLoop(loopStart int) {
+	compiler.emit(OP_LOOP)
+	offset := len(compiler.currentChunk().Bytecodes) - loopStart + 2
+	if offset > math.MaxUint8 {
+		compiler.parser.errorAtPrevious("Loop body too large.")
+	}
+	compiler.emit(uint8(offset >> 8) & 0xff, uint8(offset) & 0xff)
+}
+
 func (compiler *Compiler) emit(bytes ...byte) {
 	for _, bt := range bytes {
 		compiler.currentChunk().AddBytecode(bt, compiler.parser.previous.line)

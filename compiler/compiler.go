@@ -110,12 +110,16 @@ func (compiler *Compiler) statement() {
 		compiler.printStatement()
 	} else if compiler.match(TOKEN_IF) {
 		compiler.ifStatement()
+	} else if compiler.match(TOKEN_WHILE) {
+		compiler.whileStatement()
 	} else if compiler.match(TOKEN_LEFT_BRACE) {
 		compiler.scope.begin()
 		compiler.block()
 		compiler.scope.end()
+	} else if compiler.match(TOKEN_FOR) {
+		compiler.forStatement()
 	} else {
-		compiler.expression()
+		compiler.expressionStatement()
 	}
 }
 
@@ -150,6 +154,101 @@ func (compiler *Compiler) ifStatement() {
 	compiler.patchJump(elseJump)
 }
 
+// whileStatement while循环的字节码实现：
+// 												... condition ...
+// condition为false跳出循环						OP_JUMP_IF_FALSE	high-8bit low-8bit
+// 												OP_POP
+// 												... body ...
+// body执行完跳转至condition						OP_LOOP				high-8bit low-8bit
+// 												OP_POP
+func (compiler *Compiler) whileStatement() {
+	// 记录循环起点用于跳回
+	loopStart := len(compiler.currentChunk().Bytecodes)
+	compiler.consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.")
+	compiler.expression()
+	compiler.consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.")
+	// OP_JUMP_IF_FALSE
+	exitJump := compiler.emitJump(OP_JUMP_IF_FALSE)
+	// 条件为真，将while条件值从VM栈中弹出
+	compiler.emit(OP_POP)
+	// while循环体
+	compiler.statement()
+	// OP_LOOP
+	compiler.emitLoop(loopStart)
+	// 补充OP_JUMP_IF_FALSE的16位跳转地址
+	compiler.patchJump(exitJump)
+	// 条件为假，将while条件值从VM栈中弹出
+	compiler.emit(OP_POP)
+}
+
+// forStatement for循环的字节码实现：
+// 	==> condition执行完为false跳出循环
+// 	==> condition执行完为true跳转至body
+//	==> body执行完跳转至increment
+//	==> increment执行完跳转至condition
+// 												... initializer ...
+// 												... condition ...
+// 	condition执行完为false跳出循环				OP_JUMP_IF_FALSE	high-8bit low-8bit
+// 												OP_POP
+// 	condition执行完为true跳转至body				OP_JUMP				high-8bit low-8bit
+// 												... increment ...
+// 												OP_POP
+// 	increment执行完跳转至condition				OP_LOOP				high-8bit low-8bit
+// 												... body ...
+// 	body执行完跳转至increment					OP_LOOP				high-8bit low-8bit
+// 												OP_POP
+func (compiler *Compiler) forStatement() {
+	compiler.scope.begin()
+	compiler.consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.")
+	// ... initializer ...
+	if compiler.match(TOKEN_SEMICOLON) {
+		// No initializer.
+	} else if compiler.match(TOKEN_VAR) {
+		compiler.varDeclaration()
+	} else {
+		compiler.expressionStatement()
+	}
+	exitJump := -1
+	conditionStart := len(compiler.currentChunk().Bytecodes)
+	incrementStart := conditionStart
+	if !compiler.match(TOKEN_SEMICOLON) {
+		// ... condition ...
+		compiler.expression()
+		compiler.consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.")
+		// OP_JUMP_IF_FALSE用于退出循环
+		exitJump = compiler.emitJump(OP_JUMP_IF_FALSE)
+		// 条件为真,将for条件值从VM栈中弹出
+		compiler.emit(OP_POP)
+	}
+	if !compiler.match(TOKEN_RIGHT_PAREN) {
+		// OP_JUMP用于跳转到body先执行
+		bodyJump := compiler.emitJump(OP_JUMP)
+		// 存在increment表达式时使body执行完跳转至increment
+		incrementStart = len(compiler.currentChunk().Bytecodes)
+		// ... increment ...
+		compiler.expression()
+		// 将increment结果值从VM栈中弹出
+		compiler.emit(OP_POP)
+		compiler.consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.")
+		// OP_LOOP用于跳转到循环... condition ...判断
+		compiler.emitLoop(conditionStart)
+		// 补充OP_JUMP跳转到body的16位跳转地址
+		compiler.patchJump(bodyJump)
+	}
+	// ... body ...
+	compiler.statement()
+	// 循环体结束后跳转至 ... increment ...
+	compiler.emitLoop(incrementStart)
+	if exitJump != -1 {
+		// 补充OP_JUMP_IF_FALSE退出for循环的16位跳转地址
+		compiler.patchJump(exitJump)
+		// 条件为假,将for条件值从VM栈中弹出
+		compiler.emit(OP_POP)
+	}
+	compiler.scope.end()
+}
+
+// patchJump 补充jump操作的16位跳转地址
 func (compiler *Compiler) patchJump(offset int) {
 	jump := len(compiler.currentChunk().Bytecodes) - offset - 2
 	if jump > math.MaxUint8 {

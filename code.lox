@@ -1,5 +1,4 @@
-if (true or false)
-    print "a";
-else
-    print "b";
-print "c";
+
+for (var a = 0; a < 10; a = 1+a) {
+    print a;
+}
