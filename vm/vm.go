@@ -132,15 +132,25 @@ func (vm *VM) Run() InterpretResult {
 				return RUNTIME_ERROR
 			}
 			vm.globals[name] = vm.stack.peek(0)
+		case OP_GET_LOCAL:
+			index := vm.readBytecode()
+			value := vm.stack.frames[index]
+			vm.stack.push(value)
+		case OP_SET_LOCAL:
+			index := vm.readBytecode()
+			value := vm.stack.peek(0)
+			vm.stack.frames[index] = value
 		}
 	}
 }
 
+// readConstant 以下一个字节码为索引从常量池中读取一个常量
 func (vm *VM) readConstant() Value {
 	index := vm.readBytecode()
 	return vm.chunk.Constants[index]
 }
 
+// readBytecode 读取下一个字节码
 func (vm *VM) readBytecode() (bt byte) {
 	bt = *vm.ip
 	vm.next()

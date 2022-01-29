@@ -54,6 +54,10 @@ func DisassembleInstruction(chunk *Chunk, offset int) int {
 		return constantInstruction("OP_GET_GLOBAL", chunk, offset)
 	case OP_SET_GLOBAL:
 		return constantInstruction("OP_SET_GLOBAL", chunk, offset)
+	case OP_GET_LOCAL:
+		return byteInstruction("OP_GET_LOCAL", chunk, offset)
+	case OP_SET_LOCAL:
+		return byteInstruction("OP_SET_LOCAL", chunk, offset)
 	default:
 		fmt.Printf("Unknown opcode %d\n", instruction)
 		return offset + 1
@@ -70,6 +74,12 @@ func constantInstruction(name string, chunk *Chunk, offset int) int {
 	fmt.Printf("%-16s %4d '", name, index)
 	PrintValue(chunk.Constants[index])
 	fmt.Println()
+	return offset + 2
+}
+
+func byteInstruction(name string, chunk *Chunk, offset int) int {
+	index := chunk.Bytecodes[offset+1]
+	fmt.Printf("%-16s %4d '", name, index)
 	return offset + 2
 }
 

@@ -8,12 +8,14 @@ type Compiler struct {
 	scanner *Scanner
 	parser  *Parser
 	chunk   *Chunk
+	scope   *Scope
 }
 
 func (compiler *Compiler) Compile(source []byte) (*Chunk, error) {
 	compiler.scanner = &Scanner{source: source, line: 1}
 	compiler.parser = &Parser{}
 	compiler.chunk = CreateChunk()
+	compiler.scope = &Scope{compiler: compiler}
 	compiler.advance()
 	for !compiler.match(TOKEN_EOF) {
 		compiler.declaration()
@@ -102,36 +104,23 @@ func (compiler *Compiler) declaration() {
 	}
 }
 
-func (compiler *Compiler) varDeclaration() {
-	global := compiler.parseVariable("Expect variable name.")
-	if compiler.match(TOKEN_EQUAL) {
-		compiler.expression()
-	} else {
-		compiler.emit(OP_NIL)
-	}
-	compiler.consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.")
-	compiler.defineVariable(global)
-}
-
-func (compiler *Compiler) parseVariable(msg string) uint8 {
-	compiler.consume(TOKEN_IDENTIFIER, msg)
-	return compiler.identifierConstant(&compiler.parser.previous)
-}
-
-func (compiler *Compiler) identifierConstant(name *Token) uint8 {
-	return compiler.emitConstant(NewString(string(name.lexeme)))
-}
-
-func (compiler *Compiler) defineVariable(global uint8) {
-	compiler.emit(OP_DEFINE_GLOBAL, global)
-}
-
 func (compiler *Compiler) statement() {
 	if compiler.match(TOKEN_PRINT) {
 		compiler.printStatement()
+	} else if compiler.match(TOKEN_LEFT_BRACE) {
+		compiler.scope.begin()
+		compiler.block()
+		compiler.scope.end()
 	} else {
 		compiler.expression()
 	}
+}
+
+func (compiler *Compiler) block() {
+	for !compiler.check(TOKEN_RIGHT_BRACE) && !compiler.check(TOKEN_EOF) {
+		compiler.declaration()
+	}
+	compiler.consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.")
 }
 
 func (compiler *Compiler) printStatement() {
@@ -145,4 +134,3 @@ func (compiler *Compiler) expressionStatement() {
 	compiler.consume(TOKEN_SEMICOLON, "Expect ';' after expression.")
 	compiler.emit(OP_POP)
 }
-

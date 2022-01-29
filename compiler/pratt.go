@@ -184,11 +184,22 @@ func (compiler *Compiler) Variable(canAssign bool) {
 }
 
 func (compiler *Compiler) namedVariable(name Token, canAssign bool) {
-	arg := compiler.identifierConstant(&name)
+	var getOp, setOp uint8
+	idx, ok := compiler.scope.resolveLocal(&name)
+	if !ok {
+		// 全局变量
+		idx = compiler.identifierConstant(&name)
+		getOp = OP_GET_GLOBAL
+		setOp = OP_SET_GLOBAL
+	} else {
+		// 局部变量
+		getOp = OP_GET_LOCAL
+		setOp = OP_SET_LOCAL
+	}
 	if canAssign && compiler.match(TOKEN_EQUAL) {
 		compiler.expression()
-		compiler.emit(OP_SET_GLOBAL, arg)
+		compiler.emit(setOp, idx)
 	} else {
-		compiler.emit(OP_GET_GLOBAL, arg)
+		compiler.emit(getOp, idx)
 	}
 }
