@@ -8,33 +8,101 @@ import (
 	"unsafe"
 )
 
-type VM struct {
-	ip      *byte
-	chunk   *Chunk
-	stack   *Stack
-	globals map[string]Value
-}
+const CALL_FRAMES_MAX = 64
 
-func InitVM(chunk *Chunk) *VM {
+var emptyValue = Value{}
+
+type (
+	CallFrame struct {
+		function *FuncData
+		ip       *byte
+		slots    *Value
+	}
+	VM struct {
+		//ip      *byte
+		//chunk   *Chunk
+		stack          *Stack
+		globals        map[string]Value
+		callFrames     [CALL_FRAMES_MAX]CallFrame
+		callFrameCount int
+	}
+)
+
+func InitVM(function *FuncData) *VM {
 	stack := new(Stack)
 	stack.reset()
 	var vm VM
 	vm.stack = stack
-	vm.chunk = chunk
-	vm.ip = (*byte)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&vm.chunk.Bytecodes)).Data))
 	vm.globals = map[string]Value{}
+	//vm.callFrameCount = 1
+	//vm.callFrames[0] = CallFrame{
+	//	function: function,
+	//	ip:       (*byte)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&function.FunChunk.Bytecodes)).Data)),
+	//	slots:    stack.top,
+	//}
+	vm.stack.push(NewFunction(*function))
+	vm.callValue(vm.stack.peek(0), 0)
 	return &vm
+}
+
+// scriptPoint 脚本起点
+func (vm *VM) scriptPoint() *byte {
+	bytes := vm.callFrames[0].function.FunChunk.Bytecodes
+	return (*byte)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&bytes)).Data))
+}
+
+// functionPoint 当前函数起点
+func (vm *VM) functionPoint() *byte {
+	bytes := vm.callFrame().function.FunChunk.Bytecodes
+	return (*byte)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&bytes)).Data))
+}
+
+// currentPoint 当前地址
+func (vm *VM) currentPoint() *byte {
+	return vm.callFrame().ip
+}
+
+// returnPoint 返回调用者地址
+func (vm *VM) returnPoint() *byte {
+	if vm.callFrameCount < 1 {
+		panic("<script> can't return.")
+	}
+	return vm.callFrames[vm.callFrameCount-2].ip
+}
+
+// callFrame 当前函数调用栈帧
+func (vm *VM) callFrame() *CallFrame {
+	return &vm.callFrames[vm.callFrameCount-1]
+}
+
+// getFrameSlot 从当前函数栈帧中获取value
+func (vm *VM) getFrameSlot(index uint8) Value {
+	return *(*Value)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.callFrame().slots)) + uintptr(index)*unsafe.Sizeof(emptyValue)))
+}
+
+// setFrameSlot 向当前函数栈帧中设置value
+func (vm *VM) setFrameSlot(index uint8, value Value) {
+	*(*Value)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.callFrame().slots)) + uintptr(index)*unsafe.Sizeof(emptyValue))) = value
 }
 
 func (vm *VM) Run() InterpretResult {
 	for {
-		vm.stack.print(NewNil())
-		offset := uintptr(unsafe.Pointer(vm.ip)) - (*reflect.SliceHeader)(unsafe.Pointer(&vm.chunk.Bytecodes)).Data
-		DisassembleInstruction(vm.chunk, int(offset))
+		vm.stack.print()
+		offset := uintptr(unsafe.Pointer(vm.currentPoint())) - uintptr(unsafe.Pointer(vm.functionPoint()))
+		frame := vm.callFrame()
+		DisassembleInstruction(&frame.function.FunChunk, int(offset))
 
 		switch vm.readBytecode() {
 		case OP_RETURN:
-			return OK
+			result := vm.stack.pop()
+			vm.callFrameCount --
+			if vm.callFrameCount == 0 {
+				vm.stack.pop()
+				return OK
+			}
+			vm.stack.top = vm.callFrames[vm.callFrameCount].slots
+			vm.stack.pop()
+			vm.stack.push(result)
 		case OP_CONSTANT:
 			vm.stack.push(vm.readConstant())
 		case OP_NEGATE:
@@ -53,7 +121,7 @@ func (vm *VM) Run() InterpretResult {
 				a := vm.stack.pop().AsNumber()
 				vm.stack.push(NewNumber(a + b))
 			} else {
-				vm.runtimeError("Operands must be numbers.")
+				vm.runtimeError("Operands must be numbers or strings.")
 				return RUNTIME_ERROR
 			}
 		case OP_SUBTRACT:
@@ -134,12 +202,12 @@ func (vm *VM) Run() InterpretResult {
 			vm.globals[name] = vm.stack.peek(0)
 		case OP_GET_LOCAL:
 			index := vm.readBytecode()
-			value := vm.stack.frames[index]
+			value := vm.getFrameSlot(index)
 			vm.stack.push(value)
 		case OP_SET_LOCAL:
 			index := vm.readBytecode()
 			value := vm.stack.peek(0)
-			vm.stack.frames[index] = value
+			vm.setFrameSlot(index, value)
 		case OP_JUMP_IF_FALSE:
 			jump := vm.readShort()
 			if vm.stack.peek(0).IsFalse() {
@@ -151,6 +219,12 @@ func (vm *VM) Run() InterpretResult {
 		case OP_LOOP:
 			loop := vm.readShort()
 			vm.loop(loop)
+		case OP_CALL:
+			argCount := vm.readBytecode()
+			funcValue := vm.stack.peek(int(argCount))
+			if !vm.callValue(funcValue, argCount) {
+				return RUNTIME_ERROR
+			}
 		}
 	}
 }
@@ -158,41 +232,78 @@ func (vm *VM) Run() InterpretResult {
 // readConstant 以下一个字节码为索引从常量池中读取一个常量
 func (vm *VM) readConstant() Value {
 	index := vm.readBytecode()
-	return vm.chunk.Constants[index]
+	return vm.callFrame().function.FunChunk.Constants[index]
 }
 
 // readBytecode 读取下一个字节码
 func (vm *VM) readBytecode() (bt byte) {
-	bt = *vm.ip
+	bt = *vm.currentPoint()
 	vm.next()
 	return
 }
 
 // readShort 读取两个字节码
 func (vm *VM) readShort() uint16 {
-	high := *vm.ip
+	high := *vm.currentPoint()
 	vm.next()
-	low := *vm.ip
+	low := *vm.currentPoint()
 	vm.next()
 	return (uint16(high) << 8) | uint16(low)
 }
 
 func (vm *VM) next() {
-	vm.ip = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.ip)) + 1))
+	vm.callFrame().ip = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.currentPoint())) + 1))
 }
 
 func (vm *VM) jump(offset uint16) {
-	vm.ip = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.ip)) + uintptr(offset)))
+	vm.callFrame().ip = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.currentPoint())) + uintptr(offset)))
 }
 
 func (vm *VM) loop(offset uint16) {
-	vm.ip = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.ip)) - uintptr(offset)))
+	vm.callFrame().ip = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.currentPoint())) - uintptr(offset)))
+}
+
+func (vm *VM) callValue(callee Value, argCount uint8) bool {
+	if callee.IsFunction() {
+		funcData := callee.AsFunction()
+		return vm.callFunction(&funcData, argCount)
+	}
+	vm.runtimeError("Can only call functions and classes.")
+	return false
+}
+
+func (vm *VM) callFunction(fd *FuncData, argCount uint8) bool {
+	if argCount != uint8(fd.Arity) {
+		vm.runtimeError("Expected %d arguments but got %d.", fd.Arity, argCount)
+		return false
+	}
+	if vm.callFrameCount == CALL_FRAMES_MAX {
+		vm.runtimeError("Stack overflow.")
+		return false
+	}
+	//callerAddr := frame.ip
+	vm.callFrameCount++
+	frame := vm.callFrame()
+	frame.function = fd
+	bytes := fd.FunChunk.Bytecodes
+	frame.ip = (*byte)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&bytes)).Data))
+	frame.slots = (*Value)(unsafe.Pointer(uintptr(unsafe.Pointer(vm.stack.top)) - uintptr(argCount)*unsafe.Sizeof(emptyValue)))
+	return true
 }
 
 func (vm *VM) runtimeError(format string, a ...interface{}) {
 	_, _ = fmt.Fprintf(os.Stderr, format+"\n", a...)
-	offset := uintptr(unsafe.Pointer(vm.ip)) - (*reflect.SliceHeader)(unsafe.Pointer(&vm.chunk.Bytecodes)).Data - 1
-	line := vm.chunk.Lines[offset]
-	_, _ = fmt.Fprintf(os.Stderr, "[line %d] in script\n", line)
+	for i := vm.callFrameCount-1; i>=0 ; i-- {
+		frame := vm.callFrames[i]
+		function := frame.function
+		offset := uintptr(unsafe.Pointer(frame.ip)) - (*reflect.SliceHeader)(unsafe.Pointer(&function.FunChunk.Bytecodes)).Data - 1
+		line := function.FunChunk.Lines[offset]
+		_, _ = fmt.Fprintf(os.Stderr, "[line %d] in ", line)
+		if function.Name == "" {
+			_, _ = fmt.Fprintf(os.Stderr, "script\n")
+		} else {
+			_, _ = fmt.Fprintf(os.Stderr, "%s()\n", function.Name)
+		}
+	}
 	vm.stack.reset()
 }

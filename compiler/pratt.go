@@ -32,7 +32,7 @@ type (
 var rules = [40]parseRule{}
 
 func init() {
-	rules[TOKEN_LEFT_PAREN] = parseRule{"Grouping", "", PREC_NONE}
+	rules[TOKEN_LEFT_PAREN] = parseRule{"Grouping", "Call", PREC_CALL}
 	rules[TOKEN_RIGHT_PAREN] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_LEFT_BRACE] = parseRule{"", "", PREC_NONE}
 	rules[TOKEN_RIGHT_BRACE] = parseRule{"", "", PREC_NONE}
@@ -229,4 +229,26 @@ func (compiler *Compiler) namedVariable(name Token, canAssign bool) {
 	} else {
 		compiler.emit(getOp, idx)
 	}
+}
+
+func (compiler *Compiler) Call(bool) {
+	argCount := compiler.argList()
+	compiler.emit(OP_CALL, argCount)
+}
+
+func (compiler *Compiler) argList() (argCount uint8) {
+	if !compiler.check(TOKEN_RIGHT_PAREN) {
+		for {
+			compiler.expression()
+			if argCount == 255 {
+				compiler.parser.errorAtPrevious("Can't have more than 255 arguments.")
+			}
+			argCount ++
+			if !compiler.match(TOKEN_COMMA) {
+				break
+			}
+		}
+	}
+	compiler.consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.")
+	return
 }

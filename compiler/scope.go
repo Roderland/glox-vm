@@ -16,6 +16,8 @@ type (
 		locals     [MAX_LOCAL_COUNT]Local // 局部变量表
 		localCount int                    // 局部变量表大小
 		scopeDepth int
+		function   *FuncData
+		enclosing  *Scope
 		compiler   *Compiler
 	}
 )
@@ -68,5 +70,8 @@ func (scope *Scope) resolveLocal(name *Token) (uint8, bool) {
 // markInitialized 初始化标记：
 // 将局部变量表末尾的变量标记为已初始化
 func (scope *Scope) markInitialized() {
+	if scope.scopeDepth == 0 {
+		return
+	}
 	scope.locals[scope.localCount-1].depth = scope.scopeDepth
 }

@@ -65,6 +65,8 @@ func DisassembleInstruction(chunk *Chunk, offset int) int {
 		return jumpInstruction("OP_JUMP", 1, chunk, offset)
 	case OP_LOOP:
 		return jumpInstruction("OP_LOOP", -1, chunk, offset)
+	case OP_CALL:
+		return byteInstruction("OP_CALL", chunk, offset)
 	default:
 		fmt.Printf("Unknown opcode %d\n", instruction)
 		return offset + 1
@@ -108,5 +110,12 @@ func PrintValue(value Value) {
 		fmt.Printf("%g", value.AsNumber())
 	case VAL_STRING:
 		fmt.Printf("%s", value.AsString())
+	case VAL_FUNCTION:
+		funcName := value.AsFunction().Name
+		if funcName == "" {
+			fmt.Print("<script>")
+		} else {
+			fmt.Printf("<fn %s>", funcName)
+		}
 	}
 }

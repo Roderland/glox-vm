@@ -8,32 +8,40 @@ import (
 type Compiler struct {
 	scanner *Scanner
 	parser  *Parser
-	chunk   *Chunk
+	//chunk   *Chunk
 	scope   *Scope
 }
 
-func (compiler *Compiler) Compile(source []byte) (*Chunk, error) {
+func (compiler *Compiler) Compile(source []byte) (*FuncData, error) {
 	compiler.scanner = &Scanner{source: source, line: 1}
 	compiler.parser = &Parser{}
-	compiler.chunk = CreateChunk()
-	compiler.scope = &Scope{compiler: compiler}
+	//compiler.chunk = CreateChunk()
+	compiler.scope = &Scope{function: NewFuncData(TYPE_SCRIPT, ""), compiler: compiler}
 	compiler.advance()
 	for !compiler.match(TOKEN_EOF) {
 		compiler.declaration()
 	}
-	compiler.endCompile()
-	return compiler.currentChunk(), compiler.parser.err
+	return compiler.endCompile(), compiler.parser.err
 }
 
-func (compiler *Compiler) endCompile() {
-	compiler.emit(OP_RETURN)
-	if compiler.parser.err == nil {
-		DisassembleChunk(compiler.currentChunk(), "code")
+func (compiler *Compiler) endCompile() *FuncData {
+	function := compiler.scope.function
+	if function.Ft == TYPE_SCRIPT {
+		compiler.emit(OP_RETURN)
 	}
+	if compiler.parser.err == nil {
+		funcName := function.Name
+		if funcName == "" {
+			funcName = "<script>"
+		}
+		DisassembleChunk(compiler.currentChunk(), funcName)
+	}
+	compiler.scope = compiler.scope.enclosing
+	return function
 }
 
 func (compiler *Compiler) currentChunk() *Chunk {
-	return compiler.chunk
+	return &compiler.scope.function.FunChunk
 }
 
 func (compiler *Compiler) advance() {
@@ -100,6 +108,8 @@ func (compiler *Compiler) synchronize() {
 func (compiler *Compiler) declaration() {
 	if compiler.match(TOKEN_VAR) {
 		compiler.varDeclaration()
+	} else if compiler.match(TOKEN_FUN) {
+		compiler.funDeclaration()
 	} else {
 		compiler.statement()
 	}
@@ -118,6 +128,8 @@ func (compiler *Compiler) statement() {
 		compiler.scope.end()
 	} else if compiler.match(TOKEN_FOR) {
 		compiler.forStatement()
+	} else if compiler.match(TOKEN_RETURN) {
+		compiler.returnStatement()
 	} else {
 		compiler.expressionStatement()
 	}

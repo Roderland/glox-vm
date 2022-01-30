@@ -1,4 +1,13 @@
+//fun a() { b(); }
+//fun b() { c(); }
+//fun c() {
+//  c("too", "many");
+//}
+//
+//a();
 
-for (var a = 0; a < 10; a = 1+a) {
-    print a;
+fun f(a,b,c) {
+    print a+b+c;
+    return;
 }
+print f(1,2,3);

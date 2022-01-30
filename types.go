@@ -5,6 +5,7 @@ const (
 	VAL_BOOL
 	VAL_NUMBER
 	VAL_STRING
+	VAL_FUNCTION
 )
 
 type (
@@ -31,6 +32,10 @@ func NewString(s string) Value {
 	return Value{VAL_STRING, s}
 }
 
+func NewFunction(fd FuncData) Value {
+	return Value{VAL_FUNCTION, fd}
+}
+
 func (value Value) IsNil() bool {
 	return value.typ == VAL_NIL
 }
@@ -47,6 +52,10 @@ func (value Value) IsString() bool {
 	return value.typ == VAL_STRING
 }
 
+func (value Value) IsFunction() bool {
+	return value.typ == VAL_FUNCTION
+}
+
 func (value Value) AsBool() bool {
 	return value.data.(bool)
 }
@@ -57,6 +66,10 @@ func (value Value) AsNumber() float64 {
 
 func (value Value) AsString() string {
 	return value.data.(string)
+}
+
+func (value Value) AsFunction() FuncData {
+	return value.data.(FuncData)
 }
 
 func (value Value) IsFalse() bool {

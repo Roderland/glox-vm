@@ -27,9 +27,9 @@ func readFile() []byte {
 }
 
 func interpret(source []byte, compiler *compiler.Compiler) InterpretResult {
-	chunk, err := compiler.Compile(source)
+	script, err := compiler.Compile(source)
 	if err != nil {
 		return COMPILE_ERROR
 	}
-	return vm.InitVM(chunk).Run()
+	return vm.InitVM(script).Run()
 }

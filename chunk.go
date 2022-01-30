@@ -25,6 +25,7 @@ const (
 	OP_JUMP_IF_FALSE
 	OP_JUMP
 	OP_LOOP
+	OP_CALL
 )
 
 type Chunk struct {
@@ -33,8 +34,8 @@ type Chunk struct {
 	Constants []Value
 }
 
-func CreateChunk() *Chunk {
-	return &Chunk{
+func CreateChunk() Chunk {
+	return Chunk{
 		Bytecodes: []byte{},
 		Lines:     []int{},
 		Constants: []Value{},

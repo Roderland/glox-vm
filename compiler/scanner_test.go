@@ -6,7 +6,7 @@ import (
 )
 
 func TestScanner(t *testing.T) {
-	source := "var a = 0;\nwhile (a < 3) {\n    print \"a\";\n    a = a + 1;\n}"
+	source := "fun a() {\n    b();\n}"
 	scanner := &Scanner{source: []byte(source), line: 1}
 	line := -1
 	for {
