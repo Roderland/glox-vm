@@ -9,32 +9,37 @@ import (
 const (
 	OP_RETURN byte = iota
 	OP_CONSTANT
+	OP_NEGATE
+	OP_ADD
+	OP_SUBTRACT
+	OP_MULTIPLY
+	OP_DIVIDE
 )
 
 type Chunk struct {
-	codes     []byte
-	constants []value
-	lines     []int
+	Codes     []byte
+	Constants []Value
+	Lines     []int
 }
 
 func NewChunk() *Chunk {
 	return &Chunk{
-		codes: make([]byte, 0),
+		Codes: make([]byte, 0),
 	}
 }
 
 func (ck *Chunk) Write(code byte, line int) {
-	ck.codes = append(ck.codes, code)
-	ck.lines = append(ck.lines, line)
+	ck.Codes = append(ck.Codes, code)
+	ck.Lines = append(ck.Lines, line)
 }
 
-func (ck *Chunk) WriteConstant(constant value, line int) {
-	idx := len(ck.constants)
+func (ck *Chunk) WriteConstant(constant Value, line int) {
+	idx := len(ck.Constants)
 	if idx >= math.MaxUint8 {
-		fmt.Println("The number of constants exceeds the limit 255.")
+		fmt.Println("The number of Constants exceeds the limit 255.")
 		os.Exit(1)
 	}
-	ck.constants = append(ck.constants, constant)
+	ck.Constants = append(ck.Constants, constant)
 	ck.Write(OP_CONSTANT, line)
 	ck.Write(uint8(idx), line)
 }
