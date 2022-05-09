@@ -9,5 +9,5 @@ func PrintfDbg(format string, a ...interface{}) {
 
 func PrintfError(format string, a ...interface{}) {
 	msg := fmt.Sprintf(format, a...)
-	fmt.Printf("%c[%d;%d;%dm%s%c[0m", 0x1B, 0, 0, 30, msg, 0x1B)
+	fmt.Printf("%c[%d;%d;%dm%s%c[0m", 0x1B, 0, 0, 31, msg, 0x1B)
 }
