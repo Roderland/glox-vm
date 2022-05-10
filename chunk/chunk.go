@@ -14,6 +14,13 @@ const (
 	OP_SUBTRACT
 	OP_MULTIPLY
 	OP_DIVIDE
+	OP_NIL
+	OP_FALSE
+	OP_TRUE
+	OP_NOT
+	OP_EQUAL
+	OP_GREATER
+	OP_LESS
 )
 
 type Chunk struct {

@@ -3,6 +3,7 @@ package vm
 import (
 	"fmt"
 	"github.com/Roderland/glox-vm/chunk"
+	"github.com/Roderland/glox-vm/utils"
 )
 
 type VM struct {
@@ -32,29 +33,86 @@ func (vm *VM) Run() bool {
 		case chunk.OP_RETURN:
 			fmt.Println(vm.stackPop().String())
 			return true
+
 		case chunk.OP_CONSTANT:
 			constant := vm.readConstant()
 			vm.stackPush(constant)
+
 		case chunk.OP_NEGATE:
-			vm.stackPush(-vm.stackPop())
+			if !vm.stackPeek(0).IsNumber() {
+				vm.runtimeError("Operand must be a number.")
+				return false
+			}
+			vm.stackPush(chunk.NewNumber(-vm.stackPop().AsNumber()))
+
 		case chunk.OP_ADD:
-			b := vm.stackPop()
-			a := vm.stackPop()
-			vm.stackPush(a + b)
+			a, b, ok := vm.popBinaryNumber()
+			if !ok {
+				return false
+			}
+			vm.stackPush(chunk.NewNumber(a + b))
+
 		case chunk.OP_SUBTRACT:
-			b := vm.stackPop()
-			a := vm.stackPop()
-			vm.stackPush(a - b)
+			a, b, ok := vm.popBinaryNumber()
+			if !ok {
+				return false
+			}
+			vm.stackPush(chunk.NewNumber(a - b))
+
 		case chunk.OP_MULTIPLY:
-			b := vm.stackPop()
-			a := vm.stackPop()
-			vm.stackPush(a * b)
+			a, b, ok := vm.popBinaryNumber()
+			if !ok {
+				return false
+			}
+			vm.stackPush(chunk.NewNumber(a * b))
+
 		case chunk.OP_DIVIDE:
+			a, b, ok := vm.popBinaryNumber()
+			if !ok {
+				return false
+			}
+			vm.stackPush(chunk.NewNumber(a / b))
+
+		case chunk.OP_NIL:
+			vm.stackPush(chunk.Nil)
+		case chunk.OP_FALSE:
+			vm.stackPush(chunk.False)
+		case chunk.OP_TRUE:
+			vm.stackPush(chunk.True)
+
+		case chunk.OP_NOT:
+			vm.stackPush(chunk.NewBool(vm.stackPop().IsFalse()))
+
+		case chunk.OP_EQUAL:
 			b := vm.stackPop()
 			a := vm.stackPop()
-			vm.stackPush(a / b)
+			vm.stackPush(chunk.NewBool(chunk.Equal(a, b)))
+
+		case chunk.OP_GREATER:
+			a, b, ok := vm.popBinaryNumber()
+			if !ok {
+				return false
+			}
+			vm.stackPush(chunk.NewBool(a > b))
+
+		case chunk.OP_LESS:
+			a, b, ok := vm.popBinaryNumber()
+			if !ok {
+				return false
+			}
+			vm.stackPush(chunk.NewBool(a < b))
 		}
 	}
+}
+
+func (vm *VM) popBinaryNumber() (float64, float64, bool) {
+	if !vm.stackPeek(0).IsNumber() || !vm.stackPeek(1).IsNumber() {
+		vm.runtimeError("Operands must be numbers.")
+		return 0, 0, false
+	}
+	b := vm.stackPop().AsNumber()
+	a := vm.stackPop().AsNumber()
+	return a, b, true
 }
 
 func (vm *VM) readByte() byte {
@@ -65,4 +123,11 @@ func (vm *VM) readByte() byte {
 
 func (vm *VM) readConstant() chunk.Value {
 	return vm.ck.Constants[vm.readByte()]
+}
+
+func (vm *VM) runtimeError(format string, a ...interface{}) {
+	utils.PrintfErr(format, a...)
+	line := vm.ck.Lines[vm.ip-1]
+	utils.PrintfErr("[line %d] in script\n", line)
+	vm.stackReset()
 }

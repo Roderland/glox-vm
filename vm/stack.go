@@ -22,8 +22,16 @@ func (vm *VM) stackPop() chunk.Value {
 	return value
 }
 
+func (vm *VM) stackPeek(distance int) chunk.Value {
+	return vm.stack[vm.stackSize()-distance-1]
+}
+
 func (vm *VM) stackSize() int {
 	return len(vm.stack)
+}
+
+func (vm *VM) stackReset() {
+	vm.stack = []chunk.Value{}
 }
 
 func (vm *VM) stackInfo() {

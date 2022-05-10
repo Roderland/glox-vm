@@ -72,11 +72,23 @@ func init() {
 	rules[TOKEN_EOF] = parseRule{nil, nil, PREC_NONE}
 }
 
-func or()       {}
-func and()      {}
-func str()      {}
-func call()     {}
-func literal()  {}
+func or()   {}
+func and()  {}
+func str()  {}
+func call() {}
+func literal() {
+	tp := prs.previous.tp
+	switch tp {
+	case TOKEN_NIL:
+		emitBytes(chunk.OP_NIL)
+	case TOKEN_FALSE:
+		emitBytes(chunk.OP_FALSE)
+	case TOKEN_TRUE:
+		emitBytes(chunk.OP_TRUE)
+	default:
+		return
+	}
+}
 func variable() {}
 
 func expression() {
@@ -101,7 +113,7 @@ func parsePrecedence(pd Precedence) {
 
 func number() {
 	float, _ := strconv.ParseFloat(prs.previous.lexeme, 64)
-	emitConstant(chunk.Value(float))
+	emitConstant(chunk.NewNumber(float))
 }
 
 func grouping() {
@@ -117,6 +129,8 @@ func unary() {
 	switch operatorType {
 	case TOKEN_MINUS:
 		emitBytes(chunk.OP_NEGATE)
+	case TOKEN_BANG:
+		emitBytes(chunk.OP_NOT)
 	default:
 		return
 	}
@@ -140,6 +154,18 @@ func binary() {
 		emitBytes(chunk.OP_MULTIPLY)
 	case TOKEN_SLASH:
 		emitBytes(chunk.OP_DIVIDE)
+	case TOKEN_BANG_EQUAL:
+		emitBytes(chunk.OP_EQUAL, chunk.OP_NOT)
+	case TOKEN_EQUAL_EQUAL:
+		emitBytes(chunk.OP_EQUAL)
+	case TOKEN_GREATER:
+		emitBytes(chunk.OP_GREATER)
+	case TOKEN_GREATER_EQUAL:
+		emitBytes(chunk.OP_LESS, chunk.OP_NOT)
+	case TOKEN_LESS:
+		emitBytes(chunk.OP_LESS)
+	case TOKEN_LESS_EQUAL:
+		emitBytes(chunk.OP_GREATER, chunk.OP_NOT)
 	default:
 		return
 	}
