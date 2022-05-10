@@ -5,13 +5,6 @@ import (
 	"github.com/Roderland/glox-vm/chunk"
 )
 
-type Result uint8
-
-const (
-	OK Result = iota
-	ERROR
-)
-
 type VM struct {
 	ck        *chunk.Chunk
 	ip        int
@@ -27,7 +20,7 @@ func NewVM(ck *chunk.Chunk, debugMode bool) *VM {
 	}
 }
 
-func (vm *VM) Run() Result {
+func (vm *VM) Run() bool {
 	for {
 		// if debug mode is turned on, trace program execution
 		if vm.debugMode {
@@ -38,7 +31,7 @@ func (vm *VM) Run() Result {
 		switch instruction {
 		case chunk.OP_RETURN:
 			fmt.Println(vm.stackPop().String())
-			return OK
+			return true
 		case chunk.OP_CONSTANT:
 			constant := vm.readConstant()
 			vm.stackPush(constant)

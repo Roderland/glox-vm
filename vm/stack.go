@@ -27,7 +27,7 @@ func (vm *VM) stackSize() int {
 }
 
 func (vm *VM) stackInfo() {
-	utils.PrintfDbg(" stack -> ")
+	utils.PrintfDbg("          ")
 	for idx := 0; idx < vm.stackSize(); idx++ {
 		utils.PrintfDbg("[ ")
 		utils.PrintfDbg(vm.stack[idx].String())

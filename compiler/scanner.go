@@ -1,20 +1,18 @@
 package compiler
 
 type scanner struct {
-	source  *[]byte
+	source  []byte
 	start   int
 	current int
 	line    int
 }
 
-func newScanner(source *[]byte) *scanner {
-	return &scanner{
-		source: source,
-		line:   1,
-	}
+func (scn *scanner) init(source []byte) {
+	scn.source = append(source, ' ')
+	scn.line = 1
 }
 
-func (scn *scanner) scanToken() token {
+func (scn *scanner) scanToken() *token {
 	scn.skipWhite()
 
 	scn.start = scn.current
@@ -115,8 +113,8 @@ func (scn *scanner) skipWhite() {
 	}
 }
 
-func (scn *scanner) string() token {
-	for scn.peek() != '"' && !scn.isAtEnd() {
+func (scn *scanner) string() *token {
+	for !scn.isAtEnd() && scn.peek() != '"' {
 		if scn.peek() == '\n' {
 			scn.line++
 		}
@@ -131,7 +129,7 @@ func (scn *scanner) string() token {
 	return scn.makeToken(TOKEN_STRING)
 }
 
-func (scn *scanner) number() token {
+func (scn *scanner) number() *token {
 	for isDigit(scn.peek()) {
 		scn.advance()
 	}
@@ -147,14 +145,14 @@ func (scn *scanner) number() token {
 }
 
 func (scn *scanner) peek() byte {
-	return (*scn.source)[scn.current]
+	return scn.source[scn.current]
 }
 
 func (scn *scanner) peekNext() byte {
 	if scn.isAtEnd() {
 		return 0
 	}
-	return (*scn.source)[scn.current+1]
+	return scn.source[scn.current+1]
 }
 
 func (scn *scanner) match(expected byte) bool {
@@ -167,30 +165,30 @@ func (scn *scanner) match(expected byte) bool {
 
 func (scn *scanner) advance() byte {
 	scn.current++
-	return (*scn.source)[scn.current-1]
+	return scn.source[scn.current-1]
 }
 
 func (scn *scanner) isAtEnd() bool {
-	return scn.current >= len(*scn.source)
+	return scn.current >= len(scn.source)
 }
 
-func (scn *scanner) makeToken(tp tokenType) token {
+func (scn *scanner) makeToken(tp tokenType) *token {
 	var tk token
 	tk.tp = tp
 	tk.line = scn.line
-	tk.lexeme = string((*scn.source)[scn.start:scn.current])
-	return tk
+	tk.lexeme = string(scn.source[scn.start:scn.current])
+	return &tk
 }
 
-func (scn *scanner) errorToken(msg string) token {
+func (scn *scanner) errorToken(msg string) *token {
 	var tk token
 	tk.tp = TOKEN_ERROR
 	tk.line = scn.line
 	tk.lexeme = msg
-	return tk
+	return &tk
 }
 
-func (scn *scanner) ident() token {
+func (scn *scanner) ident() *token {
 	for isAlpha(scn.peek()) || isDigit(scn.peek()) {
 		scn.advance()
 	}
@@ -198,7 +196,7 @@ func (scn *scanner) ident() token {
 }
 
 func (scn *scanner) identifierType() tokenType {
-	switch (*scn.source)[scn.start] {
+	switch scn.source[scn.start] {
 	case 'a':
 		return scn.checkKeyword(1, 2, "nd", TOKEN_AND)
 	case 'c':
@@ -223,7 +221,7 @@ func (scn *scanner) identifierType() tokenType {
 		return scn.checkKeyword(1, 4, "hile", TOKEN_WHILE)
 	case 'f':
 		if scn.current-scn.start > 1 {
-			switch (*scn.source)[scn.start+1] {
+			switch scn.source[scn.start+1] {
 			case 'a':
 				return scn.checkKeyword(2, 3, "lse", TOKEN_FALSE)
 			case 'o':
@@ -234,7 +232,7 @@ func (scn *scanner) identifierType() tokenType {
 		}
 	case 't':
 		if scn.current-scn.start > 1 {
-			switch (*scn.source)[scn.start+1] {
+			switch scn.source[scn.start+1] {
 			case 'h':
 				return scn.checkKeyword(2, 2, "is", TOKEN_THIS)
 			case 'r':
@@ -247,7 +245,7 @@ func (scn *scanner) identifierType() tokenType {
 }
 
 func (scn *scanner) checkKeyword(start, length int, rest string, tp tokenType) tokenType {
-	if scn.current-scn.start == start+length && string((*scn.source)[scn.start+start:scn.current]) == rest {
+	if scn.current-scn.start == start+length && string(scn.source[scn.start+start:scn.current]) == rest {
 		return tp
 	}
 	return TOKEN_IDENTIFIER
