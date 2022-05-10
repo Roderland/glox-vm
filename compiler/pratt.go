@@ -74,7 +74,6 @@ func init() {
 
 func or()   {}
 func and()  {}
-func str()  {}
 func call() {}
 func literal() {
 	tp := prs.previous.tp
@@ -114,6 +113,10 @@ func parsePrecedence(pd Precedence) {
 func number() {
 	float, _ := strconv.ParseFloat(prs.previous.lexeme, 64)
 	emitConstant(chunk.NewNumber(float))
+}
+
+func str() {
+	emitConstant(chunk.NewString(prs.previous.lexeme[1 : len(prs.previous.lexeme)-1]))
 }
 
 func grouping() {

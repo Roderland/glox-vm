@@ -46,11 +46,20 @@ func (vm *VM) Run() bool {
 			vm.stackPush(chunk.NewNumber(-vm.stackPop().AsNumber()))
 
 		case chunk.OP_ADD:
-			a, b, ok := vm.popBinaryNumber()
-			if !ok {
-				return false
+			if vm.stackPeek(0).IsNumber() && vm.stackPeek(1).IsNumber() {
+				b := vm.stackPop().AsNumber()
+				a := vm.stackPop().AsNumber()
+				vm.stackPush(chunk.NewNumber(a + b))
+				break
 			}
-			vm.stackPush(chunk.NewNumber(a + b))
+			if vm.stackPeek(0).IsString() && vm.stackPeek(1).IsString() {
+				b := vm.stackPop().AsString()
+				a := vm.stackPop().AsString()
+				vm.stackPush(chunk.NewString(a + b))
+				break
+			}
+			vm.runtimeError("Operands must be numbers or strings.")
+			return false
 
 		case chunk.OP_SUBTRACT:
 			a, b, ok := vm.popBinaryNumber()
@@ -112,6 +121,16 @@ func (vm *VM) popBinaryNumber() (float64, float64, bool) {
 	}
 	b := vm.stackPop().AsNumber()
 	a := vm.stackPop().AsNumber()
+	return a, b, true
+}
+
+func (vm *VM) popBinaryString() (string, string, bool) {
+	if !vm.stackPeek(0).IsString() || !vm.stackPeek(1).IsString() {
+		vm.runtimeError("Operands must be strings.")
+		return "", "", false
+	}
+	b := vm.stackPop().AsString()
+	a := vm.stackPop().AsString()
 	return a, b, true
 }
 

@@ -2,17 +2,17 @@ package chunk
 
 import "fmt"
 
-type LoxType uint8
+type ValType uint8
 
 const (
-	VAL_BOOL LoxType = iota
+	VAL_BOOL ValType = iota
 	VAL_NIL
 	VAL_NUMBER
 	VAL_STRING
 )
 
 type Value struct {
-	lt LoxType
+	lt ValType
 	v  interface{}
 }
 
@@ -33,8 +33,17 @@ func (val Value) String() string {
 		str = "nil"
 	case VAL_NUMBER:
 		str = fmt.Sprintf("%g", val.v)
+	case VAL_STRING:
+		str = val.AsString()
 	}
 	return str
+}
+
+func NewString(s string) Value {
+	return Value{
+		lt: VAL_STRING,
+		v:  s,
+	}
 }
 
 func NewNumber(f float64) Value {
@@ -51,12 +60,20 @@ func NewBool(b bool) Value {
 	return False
 }
 
+func (val Value) AsString() string {
+	return val.v.(string)
+}
+
 func (val Value) AsNumber() float64 {
 	return val.v.(float64)
 }
 
 func (val Value) AsBool() bool {
 	return val.v.(bool)
+}
+
+func (val Value) IsString() bool {
+	return val.lt == VAL_STRING
 }
 
 func (val Value) IsNumber() bool {
@@ -84,6 +101,8 @@ func Equal(a, b Value) bool {
 			return a.AsBool() == b.AsBool()
 		case VAL_NUMBER:
 			return a.AsNumber() == b.AsNumber()
+		case VAL_STRING:
+			return a.AsString() == b.AsString()
 		default:
 			return false
 		}
