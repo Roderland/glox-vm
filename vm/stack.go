@@ -38,7 +38,12 @@ func (vm *VM) stackInfo() {
 	utils.PrintfDbg("          ")
 	for idx := 0; idx < vm.stackSize(); idx++ {
 		utils.PrintfDbg("[ ")
-		utils.PrintfDbg(vm.stack[idx].String())
+		val := vm.stack[idx]
+		str := val.AsString()
+		if val.IsString() {
+			str = "\"" + str + "\""
+		}
+		utils.PrintfDbg(str)
 		utils.PrintfDbg(" ]")
 	}
 	utils.PrintfDbg("\n")

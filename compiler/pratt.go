@@ -22,8 +22,8 @@ const (
 )
 
 type parseRule struct {
-	prefix func()
-	infix  func()
+	prefix func(bool)
+	infix  func(bool)
 	pd     Precedence
 }
 
@@ -72,10 +72,10 @@ func init() {
 	rules[TOKEN_EOF] = parseRule{nil, nil, PREC_NONE}
 }
 
-func or()   {}
-func and()  {}
-func call() {}
-func literal() {
+func or(canAssign bool)   {}
+func and(canAssign bool)  {}
+func call(canAssign bool) {}
+func literal(canAssign bool) {
 	tp := prs.previous.tp
 	switch tp {
 	case TOKEN_NIL:
@@ -88,7 +88,20 @@ func literal() {
 		return
 	}
 }
-func variable() {}
+
+func variable(canAssign bool) {
+	namedVariable(prs.previous, canAssign)
+}
+
+func namedVariable(varName *token, canAssign bool) {
+	arg := identifierConstant(varName)
+	if canAssign && match(TOKEN_EQUAL) {
+		expression()
+		emitBytes(chunk.OP_SET_GLOBAL, arg)
+	} else {
+		emitBytes(chunk.OP_GET_GLOBAL, arg)
+	}
+}
 
 func expression() {
 	parsePrecedence(PREC_ASSIGNMENT)
@@ -101,30 +114,36 @@ func parsePrecedence(pd Precedence) {
 		errorAtPrevious("Expect expression.")
 		return
 	}
-	prefixFn()
+
+	canAssign := pd <= PREC_ASSIGNMENT
+	prefixFn(canAssign)
 
 	for pd <= getParseRule(prs.current.tp).pd {
 		advance()
 		infixFn := getParseRule(prs.previous.tp).infix
-		infixFn()
+		infixFn(canAssign)
+	}
+
+	if canAssign && match(TOKEN_EQUAL) {
+		errorAtPrevious("Invalid assignment target.")
 	}
 }
 
-func number() {
+func number(canAssign bool) {
 	float, _ := strconv.ParseFloat(prs.previous.lexeme, 64)
 	emitConstant(chunk.NewNumber(float))
 }
 
-func str() {
+func str(canAssign bool) {
 	emitConstant(chunk.NewString(prs.previous.lexeme[1 : len(prs.previous.lexeme)-1]))
 }
 
-func grouping() {
+func grouping(canAssign bool) {
 	expression()
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.")
 }
 
-func unary() {
+func unary(canAssign bool) {
 	operatorType := prs.previous.tp
 
 	parsePrecedence(PREC_UNARY)
@@ -143,7 +162,7 @@ func getParseRule(tp tokenType) *parseRule {
 	return &rules[tp]
 }
 
-func binary() {
+func binary(canAssign bool) {
 	operatorType := prs.previous.tp
 
 	parsePrecedence(getParseRule(operatorType).pd + 1)

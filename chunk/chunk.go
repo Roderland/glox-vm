@@ -1,11 +1,5 @@
 package chunk
 
-import (
-	"fmt"
-	"math"
-	"os"
-)
-
 const (
 	OP_RETURN byte = iota
 	OP_CONSTANT
@@ -21,6 +15,11 @@ const (
 	OP_EQUAL
 	OP_GREATER
 	OP_LESS
+	OP_PRINT
+	OP_POP
+	OP_DEFINE_GLOBAL
+	OP_GET_GLOBAL
+	OP_SET_GLOBAL
 )
 
 type Chunk struct {
@@ -40,14 +39,7 @@ func (ck *Chunk) Write(code byte, line int) {
 	ck.Lines = append(ck.Lines, line)
 }
 
-func (ck *Chunk) WriteConstant(constant Value, line int) int {
-	idx := len(ck.Constants)
-	if idx >= math.MaxUint8 {
-		fmt.Println("The number of Constants exceeds the limit 255 of one chunk.")
-		os.Exit(1)
-	}
+func (ck *Chunk) AddConstant(constant Value) int {
 	ck.Constants = append(ck.Constants, constant)
-	ck.Write(OP_CONSTANT, line)
-	ck.Write(uint8(idx), line)
-	return idx
+	return len(ck.Constants) - 1
 }

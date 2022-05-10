@@ -11,6 +11,7 @@ type VM struct {
 	ip        int
 	stack     []chunk.Value
 	debugMode bool
+	globals   map[string]chunk.Value
 }
 
 func NewVM(ck *chunk.Chunk, debugMode bool) *VM {
@@ -18,6 +19,7 @@ func NewVM(ck *chunk.Chunk, debugMode bool) *VM {
 		ck:        ck,
 		debugMode: debugMode,
 		stack:     []chunk.Value{},
+		globals:   map[string]chunk.Value{},
 	}
 }
 
@@ -31,7 +33,7 @@ func (vm *VM) Run() bool {
 		instruction := vm.readByte()
 		switch instruction {
 		case chunk.OP_RETURN:
-			fmt.Println(vm.stackPop().String())
+			// Exit interpreter.
 			return true
 
 		case chunk.OP_CONSTANT:
@@ -110,6 +112,35 @@ func (vm *VM) Run() bool {
 				return false
 			}
 			vm.stackPush(chunk.NewBool(a < b))
+
+		case chunk.OP_PRINT:
+			fmt.Println(vm.stackPop().String())
+
+		case chunk.OP_POP:
+			vm.stackPop()
+
+		case chunk.OP_DEFINE_GLOBAL:
+			name := vm.readConstant().AsString()
+			vm.globals[name] = vm.stackPeek(0)
+			vm.stackPop()
+
+		case chunk.OP_GET_GLOBAL:
+			name := vm.readConstant().AsString()
+			val, ok := vm.globals[name]
+			if !ok {
+				vm.runtimeError("Undefined variable '%s'.", name)
+				return false
+			}
+			vm.stackPush(val)
+
+		case chunk.OP_SET_GLOBAL:
+			name := vm.readConstant().AsString()
+			_, ok := vm.globals[name]
+			if !ok {
+				vm.runtimeError("Undefined variable '%s'.", name)
+				return false
+			}
+			vm.globals[name] = vm.stackPeek(0)
 		}
 	}
 }
