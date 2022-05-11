@@ -15,13 +15,36 @@ type parser struct {
 	panicMode bool
 }
 
+const MAX_LOCAL_COUNT = math.MaxUint8 + 1
+
+type compiler struct {
+	locals     [MAX_LOCAL_COUNT]local
+	localCount int
+	scopeDepth int
+}
+
+func newCompiler() *compiler {
+	return &compiler{
+		locals:     [MAX_LOCAL_COUNT]local{},
+		localCount: 0,
+		scopeDepth: 0,
+	}
+}
+
+type local struct {
+	name  token
+	depth int
+}
+
 var scn scanner
 var prs parser
 var cck *chunk.Chunk
+var cpl *compiler
 
 func Compile(ck *chunk.Chunk, source []byte, disAsmMode bool) bool {
 	scn.init(source)
 	cck = ck
+	cpl = newCompiler()
 	prs.hadError = false
 	prs.panicMode = false
 	advance()
@@ -66,7 +89,39 @@ func varDeclaration() {
 
 func parseVariable(errorMessage string) byte {
 	consume(TOKEN_IDENTIFIER, errorMessage)
+	declareVariable()
+	if cpl.scopeDepth > 0 {
+		return 0
+	}
 	return identifierConstant(prs.previous)
+}
+
+func declareVariable() {
+	if cpl.scopeDepth == 0 {
+		return
+	}
+
+	name := *prs.previous
+
+	for i := cpl.localCount - 1; i >= 0; i-- {
+		lc := &cpl.locals[i]
+		if lc.depth != -1 && lc.depth < cpl.scopeDepth {
+			break
+		}
+		if lc.name.lexeme == name.lexeme {
+			errorAtPrevious("Already a variable with this name in this scope.")
+		}
+	}
+	addLocal(name)
+}
+
+func addLocal(tk token) {
+	if cpl.localCount == MAX_LOCAL_COUNT {
+		errorAtPrevious("Too many local variables in function.")
+	}
+	cpl.locals[cpl.localCount].name = tk
+	cpl.locals[cpl.localCount].depth = -1
+	cpl.localCount++
 }
 
 func identifierConstant(varName *token) uint8 {
@@ -74,15 +129,45 @@ func identifierConstant(varName *token) uint8 {
 }
 
 func defineVariable(global uint8) {
+	if cpl.scopeDepth > 0 {
+		markInitialized()
+		return
+	}
 	emitBytes(chunk.OP_DEFINE_GLOBAL, global)
+}
+
+func markInitialized() {
+	cpl.locals[cpl.localCount-1].depth = cpl.scopeDepth
 }
 
 func statement() {
 	if match(TOKEN_PRINT) {
 		printStatement()
+	} else if match(TOKEN_LEFT_BRACE) {
+		beginScope()
+		block()
+		endScope()
 	} else {
 		expressionStatement()
 	}
+}
+
+func beginScope() {
+	cpl.scopeDepth++
+}
+func endScope() {
+	cpl.scopeDepth--
+
+	for cpl.localCount > 0 && cpl.locals[cpl.localCount-1].depth > cpl.scopeDepth {
+		emitBytes(chunk.OP_POP)
+		cpl.localCount--
+	}
+}
+func block() {
+	for !check(TOKEN_EOF) && !check(TOKEN_RIGHT_BRACE) {
+		declaration()
+	}
+	consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.")
 }
 
 func expressionStatement() {

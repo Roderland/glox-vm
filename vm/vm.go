@@ -141,7 +141,16 @@ func (vm *VM) Run() bool {
 				return false
 			}
 			vm.globals[name] = vm.stackPeek(0)
+
+		case chunk.OP_GET_LOCAL:
+			slot := vm.readByte()
+			vm.stackPush(vm.stack[slot])
+
+		case chunk.OP_SET_LOCAL:
+			slot := vm.readByte()
+			vm.stack[slot] = vm.stackPeek(0)
 		}
+
 	}
 }
 

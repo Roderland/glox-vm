@@ -94,13 +94,35 @@ func variable(canAssign bool) {
 }
 
 func namedVariable(varName *token, canAssign bool) {
-	arg := identifierConstant(varName)
+	var getOp, setOp byte
+	arg := isLocal(cpl, varName)
+	if arg != -1 {
+		getOp = chunk.OP_GET_LOCAL
+		setOp = chunk.OP_SET_LOCAL
+	} else {
+		arg = int(identifierConstant(varName))
+		getOp = chunk.OP_GET_GLOBAL
+		setOp = chunk.OP_SET_GLOBAL
+	}
+
 	if canAssign && match(TOKEN_EQUAL) {
 		expression()
-		emitBytes(chunk.OP_SET_GLOBAL, arg)
+		emitBytes(setOp, uint8(arg))
 	} else {
-		emitBytes(chunk.OP_GET_GLOBAL, arg)
+		emitBytes(getOp, uint8(arg))
 	}
+}
+
+func isLocal(cpl *compiler, name *token) int {
+	for i := cpl.localCount - 1; i >= 0; i-- {
+		if cpl.locals[i].name.lexeme == name.lexeme {
+			if cpl.locals[i].depth == -1 {
+				errorAtPrevious("Can't read local variable in its own initializer.")
+			}
+			return i
+		}
+	}
+	return -1
 }
 
 func expression() {

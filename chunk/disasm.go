@@ -60,6 +60,10 @@ func DisAsmInstruction(ck *Chunk, offset int) int {
 		return constantInstruction("OP_GET_GLOBAL", ck, offset)
 	case OP_SET_GLOBAL:
 		return constantInstruction("OP_SET_GLOBAL", ck, offset)
+	case OP_GET_LOCAL:
+		return byteInstruction("OP_GET_LOCAL", ck, offset)
+	case OP_SET_LOCAL:
+		return byteInstruction("OP_SET_LOCAL", ck, offset)
 	default:
 		utils.PrintfDbg("Unknown opcode %d\n", instruction)
 		return offset + 1
@@ -76,5 +80,11 @@ func constantInstruction(name string, ck *Chunk, offset int) int {
 	utils.PrintfDbg("%-16s %4d '", name, idx)
 	utils.PrintfDbg(ck.Constants[idx].String())
 	utils.PrintfDbg("\n")
+	return offset + 2
+}
+
+func byteInstruction(name string, ck *Chunk, offset int) int {
+	slot := ck.Codes[offset+1]
+	utils.PrintfDbg("%-16s %4d\n", name, slot)
 	return offset + 2
 }
