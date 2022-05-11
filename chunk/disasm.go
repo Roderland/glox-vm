@@ -64,6 +64,12 @@ func DisAsmInstruction(ck *Chunk, offset int) int {
 		return byteInstruction("OP_GET_LOCAL", ck, offset)
 	case OP_SET_LOCAL:
 		return byteInstruction("OP_SET_LOCAL", ck, offset)
+	case OP_JUMP:
+		return jumpInstruction("OP_JUMP", 1, ck, offset)
+	case OP_JUMP_IF_FALSE:
+		return jumpInstruction("OP_JUMP_IF_FALSE", 1, ck, offset)
+	case OP_LOOP:
+		return jumpInstruction("OP_LOOP", -1, ck, offset)
 	default:
 		utils.PrintfDbg("Unknown opcode %d\n", instruction)
 		return offset + 1
@@ -87,4 +93,11 @@ func byteInstruction(name string, ck *Chunk, offset int) int {
 	slot := ck.Codes[offset+1]
 	utils.PrintfDbg("%-16s %4d\n", name, slot)
 	return offset + 2
+}
+
+func jumpInstruction(name string, sign int, ck *Chunk, offset int) int {
+	jump := uint16(ck.Codes[offset+1]) << 8
+	jump |= uint16(ck.Codes[offset+2])
+	utils.PrintfDbg("%-16s %4d -> %d\n", name, offset, offset+3+sign*int(jump))
+	return offset + 3
 }

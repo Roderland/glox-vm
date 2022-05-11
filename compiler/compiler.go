@@ -147,9 +147,121 @@ func statement() {
 		beginScope()
 		block()
 		endScope()
+	} else if match(TOKEN_IF) {
+		ifStatement()
+	} else if match(TOKEN_WHILE) {
+		whileStatement()
+	} else if match(TOKEN_FOR) {
+		forStatement()
 	} else {
 		expressionStatement()
 	}
+}
+
+func forStatement() {
+	beginScope()
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.")
+	if match(TOKEN_SEMICOLON) {
+		// No initializer.
+	} else if match(TOKEN_VAR) {
+		varDeclaration()
+	} else {
+		expressionStatement()
+	}
+
+	loopStart := len(currentChunk().Codes)
+	incrStart := loopStart
+	exitJump := -1
+	if !match(TOKEN_SEMICOLON) {
+		expression()
+		consume(TOKEN_SEMICOLON, "Expect ';'.")
+
+		exitJump = emitJump(chunk.OP_JUMP_IF_FALSE)
+		emitBytes(chunk.OP_POP)
+	}
+
+	if !match(TOKEN_RIGHT_PAREN) {
+		bodyJump := emitJump(chunk.OP_JUMP)
+		incrStart = len(currentChunk().Codes)
+		expression()
+		emitBytes(chunk.OP_POP)
+		consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.")
+
+		emitLoop(loopStart)
+		loopStart = incrStart
+		patchJump(bodyJump)
+	}
+
+	statement()
+	emitLoop(incrStart)
+
+	if exitJump != -1 {
+		patchJump(exitJump)
+		emitBytes(chunk.OP_POP)
+	}
+
+	endScope()
+}
+
+func whileStatement() {
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.")
+	loopStart := len(currentChunk().Codes)
+	expression()
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.")
+
+	exitJump := emitJump(chunk.OP_JUMP_IF_FALSE)
+	emitBytes(chunk.OP_POP)
+	statement()
+	emitLoop(loopStart)
+
+	patchJump(exitJump)
+	emitBytes(chunk.OP_POP)
+}
+
+func emitLoop(loopStart int) {
+	emitBytes(chunk.OP_LOOP)
+
+	offset := len(currentChunk().Codes) - loopStart + 2
+	if offset > math.MaxUint16 {
+		errorAtPrevious("Loop body too large.")
+	}
+
+	emitBytes(uint8(offset>>8) & 0xff)
+	emitBytes(uint8(offset) & 0xff)
+}
+
+func ifStatement() {
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.")
+	expression()
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.")
+
+	thenJump := emitJump(chunk.OP_JUMP_IF_FALSE)
+	emitBytes(chunk.OP_POP)
+	statement()
+
+	elseJump := emitJump(chunk.OP_JUMP)
+	patchJump(thenJump)
+	emitBytes(chunk.OP_POP)
+
+	if match(TOKEN_ELSE) {
+		statement()
+	}
+	patchJump(elseJump)
+}
+
+func emitJump(instruction byte) int {
+	emitBytes(instruction, 0xff, 0xff)
+	return len(currentChunk().Codes) - 2
+}
+
+func patchJump(offset int) {
+	jump := len(currentChunk().Codes) - offset - 2
+	if jump > math.MaxUint16 {
+		errorAtPrevious("Too much code to jump over.")
+	}
+
+	currentChunk().Codes[offset] = byte((jump >> 8) & 0xff)
+	currentChunk().Codes[offset+1] = byte(jump & 0xff)
 }
 
 func beginScope() {

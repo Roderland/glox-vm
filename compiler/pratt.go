@@ -72,9 +72,26 @@ func init() {
 	rules[TOKEN_EOF] = parseRule{nil, nil, PREC_NONE}
 }
 
-func or(canAssign bool)   {}
-func and(canAssign bool)  {}
+func or(canAssign bool) {
+	elseJump := emitJump(chunk.OP_JUMP_IF_FALSE)
+	endJump := emitJump(chunk.OP_JUMP)
+
+	patchJump(elseJump)
+	emitBytes(chunk.OP_POP)
+
+	parsePrecedence(PREC_OR)
+	patchJump(endJump)
+}
+
+func and(canAssign bool) {
+	endJump := emitJump(chunk.OP_JUMP_IF_FALSE)
+	emitBytes(chunk.OP_POP)
+	parsePrecedence(PREC_AND)
+	patchJump(endJump)
+}
+
 func call(canAssign bool) {}
+
 func literal(canAssign bool) {
 	tp := prs.previous.tp
 	switch tp {

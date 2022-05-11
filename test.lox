@@ -1,27 +1,6 @@
-var breakfast = "beignets";
-var beverage = "cafe au lait";
-breakfast = "beignets with " + beverage;
-
-print breakfast;
-
-
-
-var a = "global a";
-var b = "global b";
-var c = "global c";
-{
-  var a = "outer a";
-  var b = "outer b";
-  {
-    var a = "inner a";
-    print a;
-    print b;
-    print c;
-  }
-  print a;
-  print b;
-  print c;
+var i = 1;
+if (i > 0) {
+    print 1;
+} else {
+    print 0;
 }
-print a;
-print b;
-print c;

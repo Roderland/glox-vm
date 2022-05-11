@@ -149,8 +149,21 @@ func (vm *VM) Run() bool {
 		case chunk.OP_SET_LOCAL:
 			slot := vm.readByte()
 			vm.stack[slot] = vm.stackPeek(0)
-		}
 
+		case chunk.OP_JUMP_IF_FALSE:
+			offset := vm.readShort()
+			if vm.stackPeek(0).IsFalse() {
+				vm.ip += int(offset)
+			}
+
+		case chunk.OP_JUMP:
+			offset := vm.readShort()
+			vm.ip += int(offset)
+
+		case chunk.OP_LOOP:
+			offset := vm.readShort()
+			vm.ip -= int(offset)
+		}
 	}
 }
 
@@ -178,6 +191,14 @@ func (vm *VM) readByte() byte {
 	bt := vm.ck.Codes[vm.ip]
 	vm.ip++
 	return bt
+}
+
+func (vm *VM) readShort() uint16 {
+	bt1 := uint16(vm.ck.Codes[vm.ip])
+	vm.ip++
+	bt2 := uint16(vm.ck.Codes[vm.ip])
+	vm.ip++
+	return (bt1 << 8) | bt2
 }
 
 func (vm *VM) readConstant() chunk.Value {
