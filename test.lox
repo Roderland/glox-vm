@@ -1,9 +1,8 @@
-fun noReturn() {
-  print "Do stuff"; //
-  // No return here. //
-  var a = "nihao";
-  return a;
+fun fib(n) {
+  if (n < 2) return n;
+  return fib(n - 2) + fib(n - 1);
 }
 
-// ????
-print noReturn(); // ????
+var start = clock();
+print fib(35);
+print clock() - start;

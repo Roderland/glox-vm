@@ -39,7 +39,7 @@ func interpret(source []byte) InterpretResult {
 	}
 
 	fmt.Println("====================== output ======================")
-	if !vm.Do(function, true) {
+	if !vm.Do(function, false) {
 		return RUNTIME_ERROR
 	}
 

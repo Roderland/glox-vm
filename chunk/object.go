@@ -5,6 +5,7 @@ type FunType uint8
 
 const (
 	OBJ_FUNCTION ObjType = iota
+	OBJ_NATIVE
 )
 
 const (
@@ -40,11 +41,20 @@ func NewFunction(function ObjFunction) Object {
 	}
 }
 
+func NewNative(native NativeFunction) Object {
+	return Object{
+		ot:      OBJ_NATIVE,
+		content: native,
+	}
+}
+
 type ObjFunction struct {
 	Name  string
 	Arity int
 	Ck    Chunk
 }
+
+type NativeFunction func(args ...Value) Value
 
 func (obj *Object) IsFunction() bool {
 	return obj.ot == OBJ_FUNCTION
@@ -52,6 +62,14 @@ func (obj *Object) IsFunction() bool {
 
 func (obj Object) AsFunction() ObjFunction {
 	return obj.content.(ObjFunction)
+}
+
+func (obj Object) IsNative() bool {
+	return obj.ot == OBJ_NATIVE
+}
+
+func (obj Object) AsNative() NativeFunction {
+	return obj.content.(NativeFunction)
 }
 
 func (of ObjFunction) GetName() string {
@@ -67,6 +85,8 @@ func (obj Object) String() string {
 	switch obj.ot {
 	case OBJ_FUNCTION:
 		str = "<fn " + obj.AsFunction().GetName() + ">"
+	case OBJ_NATIVE:
+		str = "<native fn>"
 	}
 	return str
 }

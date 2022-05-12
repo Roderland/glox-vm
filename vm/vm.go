@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/Roderland/glox-vm/chunk"
 	"github.com/Roderland/glox-vm/utils"
+	"time"
 )
 
 const MAX_FRAME = 64
@@ -32,12 +33,14 @@ func Do(function *chunk.ObjFunction, debugMode bool) bool {
 }
 
 func initVM() *VM {
-	return &VM{
+	vm := &VM{
 		frames:     [MAX_FRAME]CallFrame{},
 		frameCount: 0,
 		stack:      []chunk.Value{},
 		globals:    map[string]chunk.Value{},
 	}
+	vm.defineNative("clock", clockNative)
+	return vm
 }
 
 func (vm *VM) Run(debugMode bool) bool {
@@ -206,6 +209,15 @@ func (vm *VM) callValue(callee chunk.Value, argCount int) bool {
 		if obj.IsFunction() {
 			return vm.call(obj.AsFunction(), argCount)
 		}
+		if obj.IsNative() {
+			native := obj.AsNative()
+			start := len(vm.stack) - argCount
+			result := native(vm.stack[start:]...)
+
+			vm.stack = vm.stack[:start]
+			vm.stackPush(result)
+			return true
+		}
 	}
 	vm.runtimeError("Can only call functions and classes.")
 	return false
@@ -284,4 +296,12 @@ func (vm *VM) runtimeError(format string, a ...interface{}) {
 	}
 
 	vm.stackReset()
+}
+
+func (vm *VM) defineNative(name string, native chunk.NativeFunction) {
+	vm.globals[name] = chunk.NewObject(chunk.NewNative(native))
+}
+
+func clockNative(args ...chunk.Value) chunk.Value {
+	return chunk.NewNumber(float64(time.Now().Unix()))
 }
