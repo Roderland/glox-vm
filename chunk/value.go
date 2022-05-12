@@ -9,6 +9,7 @@ const (
 	VAL_NIL
 	VAL_NUMBER
 	VAL_STRING
+	VAL_OBJECT
 )
 
 type Value struct {
@@ -19,25 +20,6 @@ type Value struct {
 var Nil = Value{VAL_NIL, nil}
 var False = Value{VAL_BOOL, false}
 var True = Value{VAL_BOOL, true}
-
-func (val Value) String() string {
-	var str string
-	switch val.lt {
-	case VAL_BOOL:
-		if val.AsBool() {
-			str = "true"
-		} else {
-			str = "false"
-		}
-	case VAL_NIL:
-		str = "nil"
-	case VAL_NUMBER:
-		str = fmt.Sprintf("%g", val.v)
-	case VAL_STRING:
-		str = val.AsString()
-	}
-	return str
-}
 
 func NewString(s string) Value {
 	return Value{
@@ -108,4 +90,25 @@ func Equal(a, b Value) bool {
 		}
 	}
 	return false
+}
+
+func (val Value) String() string {
+	var str string
+	switch val.lt {
+	case VAL_BOOL:
+		if val.AsBool() {
+			str = "true"
+		} else {
+			str = "false"
+		}
+	case VAL_NIL:
+		str = "nil"
+	case VAL_NUMBER:
+		str = fmt.Sprintf("%g", val.v)
+	case VAL_STRING:
+		str = val.AsString()
+	case VAL_OBJECT:
+		str = val.AsObject().String()
+	}
+	return str
 }

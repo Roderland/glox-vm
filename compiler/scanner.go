@@ -101,7 +101,7 @@ func (scn *scanner) skipWhite() {
 		case '/':
 			if scn.peekNext() == '/' {
 				// A comment goes until the end of the line.
-				for scn.peek() != '\n' && !scn.isAtEnd() {
+				for !scn.isAtEnd() && scn.peek() != '\n' {
 					scn.advance()
 				}
 			} else {

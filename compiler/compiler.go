@@ -18,17 +18,32 @@ type parser struct {
 const MAX_LOCAL_COUNT = math.MaxUint8 + 1
 
 type compiler struct {
-	locals     [MAX_LOCAL_COUNT]local
-	localCount int
-	scopeDepth int
+	enclosing    *compiler
+	function     *chunk.ObjFunction
+	functionType chunk.FunType
+	locals       [MAX_LOCAL_COUNT]local
+	localCount   int
+	scopeDepth   int
 }
 
-func newCompiler() *compiler {
-	return &compiler{
-		locals:     [MAX_LOCAL_COUNT]local{},
-		localCount: 0,
-		scopeDepth: 0,
+func newCompiler(functionType chunk.FunType) *compiler {
+	cpl := compiler{
+		enclosing:    cpl,
+		function:     &chunk.ObjFunction{},
+		functionType: functionType,
+		locals:       [MAX_LOCAL_COUNT]local{},
+		localCount:   0,
+		scopeDepth:   0,
 	}
+
+	if functionType != chunk.SCRIPT {
+		cpl.function.Name = prs.previous.lexeme
+	}
+
+	cpl.locals[cpl.localCount].depth = 0
+	cpl.locals[cpl.localCount].name.lexeme = ""
+	cpl.localCount++
+	return &cpl
 }
 
 type local struct {
@@ -38,33 +53,30 @@ type local struct {
 
 var scn scanner
 var prs parser
-var cck *chunk.Chunk
+
+// var cck *chunk.Chunk
 var cpl *compiler
 
-func Compile(ck *chunk.Chunk, source []byte, disAsmMode bool) bool {
+func Compile(source []byte, disAsmMode bool) (*chunk.ObjFunction, bool) {
 	scn.init(source)
-	cck = ck
-	cpl = newCompiler()
+	// cck = chunk.NewChunk()
+	cpl = newCompiler(chunk.SCRIPT)
 	prs.hadError = false
 	prs.panicMode = false
 	advance()
-	//expression()
-	//consume(TOKEN_EOF, "Expect end of expression.")
+
 	for !match(TOKEN_EOF) {
 		declaration()
 	}
-	endCompile()
-	if disAsmMode {
-		if !prs.hadError {
-			chunk.DisAsmChunk(ck, "compile result")
-		}
-	}
-	return !prs.hadError
+
+	return endCompile(disAsmMode), !prs.hadError
 }
 
 func declaration() {
 	if match(TOKEN_VAR) {
 		varDeclaration()
+	} else if match(TOKEN_FUN) {
+		funDeclaration()
 	} else {
 		statement()
 	}
@@ -72,6 +84,46 @@ func declaration() {
 	if prs.panicMode {
 		synchronize()
 	}
+}
+
+func funDeclaration() {
+	global := parseVariable("Expect function name.")
+	markInitialized()
+	function(chunk.FUNCTION)
+	defineVariable(global)
+}
+
+func function(ft chunk.FunType) {
+	cpl = newCompiler(ft)
+	beginScope()
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.")
+
+	if !check(TOKEN_RIGHT_PAREN) {
+		cpl.function.Arity++
+		if cpl.function.Arity > 255 {
+			errorAtCurrent("Can't have more than 255 parameters.")
+		}
+		constant := parseVariable("Expect parameter name.")
+		defineVariable(constant)
+
+		for match(TOKEN_COMMA) {
+			cpl.function.Arity++
+			if cpl.function.Arity > 255 {
+				errorAtCurrent("Can't have more than 255 parameters.")
+			}
+			constant := parseVariable("Expect parameter name.")
+			defineVariable(constant)
+		}
+	}
+
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.")
+	consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.")
+	block()
+
+	// endScope()
+	fun := endCompile(true)
+	val := chunk.NewObject(chunk.NewFunction(*fun))
+	emitBytes(chunk.OP_CONSTANT, makeConstant(val))
 }
 
 func varDeclaration() {
@@ -137,6 +189,9 @@ func defineVariable(global uint8) {
 }
 
 func markInitialized() {
+	if cpl.scopeDepth == 0 {
+		return
+	}
 	cpl.locals[cpl.localCount-1].depth = cpl.scopeDepth
 }
 
@@ -153,8 +208,24 @@ func statement() {
 		whileStatement()
 	} else if match(TOKEN_FOR) {
 		forStatement()
+	} else if match(TOKEN_RETURN) {
+		returnStatement()
 	} else {
 		expressionStatement()
+	}
+}
+
+func returnStatement() {
+	if cpl.functionType == chunk.SCRIPT {
+		errorAtPrevious("Can't return from top-level code.")
+	}
+
+	if match(TOKEN_SEMICOLON) {
+		emitReturn()
+	} else {
+		expression()
+		consume(TOKEN_SEMICOLON, "Expect ';' after return value.")
+		emitBytes(chunk.OP_RETURN)
 	}
 }
 
@@ -306,12 +377,25 @@ func check(tp tokenType) bool {
 	return prs.current.tp == tp
 }
 
-func endCompile() {
+func endCompile(disAsmMode bool) *chunk.ObjFunction {
+	emitReturn()
+	function := cpl.function
+	if disAsmMode {
+		if !prs.hadError {
+			chunk.DisAsmChunk(currentChunk(), function.GetName())
+		}
+	}
+	cpl = cpl.enclosing
+	return function
+}
+
+func emitReturn() {
+	emitBytes(chunk.OP_NIL)
 	emitBytes(chunk.OP_RETURN)
 }
 
 func currentChunk() *chunk.Chunk {
-	return cck
+	return &cpl.function.Ck
 }
 
 func emitConstant(value chunk.Value) uint8 {

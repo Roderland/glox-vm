@@ -90,7 +90,27 @@ func and(canAssign bool) {
 	patchJump(endJump)
 }
 
-func call(canAssign bool) {}
+func call(canAssign bool) {
+	argCount := argumentList()
+	emitBytes(chunk.OP_CALL, argCount)
+}
+
+func argumentList() uint8 {
+	argCount := 0
+	if !check(TOKEN_RIGHT_PAREN) {
+		expression()
+		argCount++
+		for match(TOKEN_COMMA) {
+			expression()
+			if argCount == 255 {
+				errorAtPrevious("Can't have more than 255 arguments.")
+			}
+			argCount++
+		}
+	}
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.")
+	return uint8(argCount)
+}
 
 func literal(canAssign bool) {
 	tp := prs.previous.tp

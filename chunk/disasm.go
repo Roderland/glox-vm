@@ -5,7 +5,7 @@ import (
 )
 
 func DisAsmChunk(ck *Chunk, name string) {
-	utils.PrintfDbg("=== %s ===\n", name)
+	utils.PrintfDbg("====================== %s ======================\n", name)
 
 	for offset := 0; offset < len(ck.Codes); {
 		offset = DisAsmInstruction(ck, offset)
@@ -70,6 +70,8 @@ func DisAsmInstruction(ck *Chunk, offset int) int {
 		return jumpInstruction("OP_JUMP_IF_FALSE", 1, ck, offset)
 	case OP_LOOP:
 		return jumpInstruction("OP_LOOP", -1, ck, offset)
+	case OP_CALL:
+		return byteInstruction("OP_CALL", ck, offset)
 	default:
 		utils.PrintfDbg("Unknown opcode %d\n", instruction)
 		return offset + 1
@@ -83,7 +85,7 @@ func simpleInstruction(name string, offset int) int {
 
 func constantInstruction(name string, ck *Chunk, offset int) int {
 	idx := ck.Codes[offset+1]
-	utils.PrintfDbg("%-16s %4d '", name, idx)
+	utils.PrintfDbg("%-16s   const[%d] '", name, idx)
 	utils.PrintfDbg(ck.Constants[idx].String())
 	utils.PrintfDbg("\n")
 	return offset + 2
@@ -91,7 +93,7 @@ func constantInstruction(name string, ck *Chunk, offset int) int {
 
 func byteInstruction(name string, ck *Chunk, offset int) int {
 	slot := ck.Codes[offset+1]
-	utils.PrintfDbg("%-16s %4d\n", name, slot)
+	utils.PrintfDbg("%-16s    slot[%d]\n", name, slot)
 	return offset + 2
 }
 

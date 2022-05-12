@@ -2,12 +2,19 @@ package main
 
 import (
 	"fmt"
-	"github.com/Roderland/glox-vm/chunk"
 	"github.com/Roderland/glox-vm/compiler"
 	"github.com/Roderland/glox-vm/utils"
 	"github.com/Roderland/glox-vm/vm"
 	"io/ioutil"
 	"os"
+)
+
+type InterpretResult uint8
+
+const (
+	OK InterpretResult = iota
+	COMPILE_ERROR
+	RUNTIME_ERROR
 )
 
 func main() {
@@ -25,22 +32,14 @@ func main() {
 	interpret(bytes)
 }
 
-type InterpretResult uint8
-
-const (
-	OK InterpretResult = iota
-	RUNTIME_ERROR
-	COMPILE_ERROR
-)
-
 func interpret(source []byte) InterpretResult {
-	ck := chunk.NewChunk()
-
-	if !compiler.Compile(ck, source, true) {
+	function, ok := compiler.Compile(source, true)
+	if !ok {
 		return COMPILE_ERROR
 	}
 
-	if !vm.NewVM(ck, true).Run() {
+	fmt.Println("====================== output ======================")
+	if !vm.Do(function, true) {
 		return RUNTIME_ERROR
 	}
 
